@@ -1,0 +1,11 @@
+# Rahasia & data
+.env
+*.db
+*.db-journal
+__pycache__/
+*.pyc
+.pytest_cache/
+venv/
+node_modules/
+# Sementara
+backend/seed_demo.py
