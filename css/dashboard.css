@@ -51,8 +51,9 @@
   font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap;
 }
 .dash-table td { padding: 14px; color: var(--text-soft); border-top: 1px solid var(--line); }
-.dash-table tbody tr { transition: background .15s ease; }
+.dash-table tbody tr { transition: background .15s ease, transform .15s ease; cursor: pointer; }
 .dash-table tbody tr:hover { background: rgba(51, 80, 143, .05); }
+.dash-table tbody tr:active { background: rgba(51, 80, 143, .1); }
 .dash-empty { color: var(--text-mute); padding: 20px 4px; margin: 0; }
 
 /* BADGE STATUS */
