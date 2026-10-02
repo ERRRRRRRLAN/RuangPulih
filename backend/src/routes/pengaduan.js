@@ -14,16 +14,16 @@ function buatTiket(d = new Date()) {
 }
 function publik(p) { // field pengaduan untuk response publik (tanpa cerita!)
   return { no_tiket: p.no_tiket, untuk: p.untuk, kategori: p.kategori, frekuensi: p.frekuensi,
-           usia: p.usia, status: p.status, dibuat: p.dibuat };
+           usia: p.usia, status: p.status, darurat: !!p.darurat, dibuat: p.dibuat };
 }
 function lengkap(p) { // versi konselor: sertakan cerita & kontak didekripsi
   return { ...publik(p), cerita: decrypt(p.cerita_enc), kontak: p.kontak_enc ? decrypt(p.kontak_enc) : null,
-           ditangani_oleh: p.ditangani_oleh, diperbarui: p.diperbarui };
+           lokasi: p.lokasi, ditangani_oleh: p.ditangani_oleh, diperbarui: p.diperbarui };
 }
 
-// POST /api/pengaduan — publik, anonim, tanpa login
-router.post('/', (req, res) => {
-  const { untuk, kategori, frekuensi, usia, cerita, kontak } = req.body || {};
+// POST /api/pengaduan(/baru) — publik, anonim, tanpa login
+function buatPengaduan(req, res) {
+  const { untuk, kategori, frekuensi, usia, cerita, kontak, lokasi, darurat } = req.body || {};
   if (!untuk || !kategori || !cerita || !String(cerita).trim())
     return res.status(400).json({ error: 'untuk, kategori, cerita wajib diisi' });
   if (String(cerita).length > 5000) return res.status(400).json({ error: 'cerita maksimal 5000 karakter' });
@@ -31,14 +31,17 @@ router.post('/', (req, res) => {
   const no_tiket = buatTiket();
   const sekarang = Date.now();
   const info = db.prepare(
-    `INSERT INTO pengaduan (no_tiket, untuk, kategori, frekuensi, usia, cerita_enc, kontak_enc, status, dibuat)
-     VALUES (?,?,?,?,?,?,?,?,?)`
+    `INSERT INTO pengaduan (no_tiket, untuk, kategori, frekuensi, usia, cerita_enc, kontak_enc, status, darurat, lokasi, dibuat)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)`
   ).run(no_tiket, String(untuk), String(kategori), frekuensi || null, usia || null,
-        encrypt(String(cerita)), kontak ? encrypt(String(kontak)) : null, 'Diterima', sekarang);
+        encrypt(String(cerita)), kontak ? encrypt(String(kontak)) : null, 'Diterima',
+        darurat ? 1 : 0, lokasi || null, sekarang);
 
   audit.catat(`user:${no_tiket}`, 'BUAT_PENGADUAN', `id=${info.lastInsertRowid}`, req.ip);
   res.status(201).json({ no_tiket, status: 'Diterima' });
-});
+}
+router.post('/', buatPengaduan);
+router.post('/baru', buatPengaduan); // alias: frontend lama masih pakai /baru
 
 // GET /api/pengaduan/:tiket — publik, hanya metadata + status (tidak kirim cerita)
 router.get('/:tiket', (req, res) => {

@@ -4,6 +4,17 @@ const { verifikasiJWT, encrypt, decrypt } = require('./security');
 const db = require('./db');
 const audit = require('./audit');
 
+function parseCookie(header) { // cookie jar -> object
+  const out = {};
+  if (!header) return out;
+  for (const bag of String(header).split(';')) {
+    const i = bag.indexOf('=');
+    if (i < 0) continue;
+    out[bag.slice(0, i).trim()] = decodeURIComponent(bag.slice(i + 1).trim());
+  }
+  return out;
+}
+
 function pasang(server) {
   const wss = new WebSocketServer({ server, path: '/ws' });
   const klien = new Set(); // {tiket?, konselor?, ws}
@@ -11,7 +22,7 @@ function pasang(server) {
   wss.on('connection', (ws, req) => {
     const url = new URL(req.url, 'http://x');
     const tiket = url.searchParams.get('tiket');      // anonim: cukup no_tiket
-    const token = url.searchParams.get('token');      // konselor: JWT
+    const token = url.searchParams.get('token') || parseCookie(req.headers.cookie).session; // konselor: JWT
     let sesi = {};
 
     if (token) {

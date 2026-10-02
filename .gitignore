@@ -5,6 +5,8 @@ backend/.env
 # Database
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 backend/ruangpulih.db
 
 # Dependency

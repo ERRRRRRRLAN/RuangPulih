@@ -860,7 +860,7 @@ router.get('/antrian', butuhKonselor, (req, res) => {
 });
 
 // GET /api/dashboard/audit — admin saja: log audit (auditabilitas PDF 3.8)
-router.get('/audit', butuhAdmin, (req, res) => {
+router.get('/audit', butuhKonselor, butuhAdmin, (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 200);
   const rows = db.prepare('SELECT * FROM audit_log ORDER BY id DESC LIMIT ?').all(limit);
   res.json(rows);

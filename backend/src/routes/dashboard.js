@@ -3,6 +3,8 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { butuhKonselor, butuhAdmin } = require('../deps');
+const { hashSandi } = require('../security');
+const { catat } = require('../audit');
 
 // GET /api/dashboard/stats — ringkasan untuk dashboard konselor
 router.get('/stats', butuhKonselor, (req, res) => {
@@ -36,6 +38,39 @@ router.get('/audit', butuhKonselor, butuhAdmin, (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 200);
   const rows = db.prepare('SELECT * FROM audit_log ORDER BY id DESC LIMIT ?').all(limit);
   res.json(rows);
+});
+
+// GET /api/dashboard/konselor — admin saja: daftar akun konselor
+router.get('/konselor', butuhKonselor, butuhAdmin, (req, res) => {
+  const rows = db.prepare('SELECT id, username, nama, peran, aktif, dibuat FROM konselor ORDER BY id ASC').all();
+  res.json(rows);
+});
+
+// POST /api/dashboard/konselor — admin saja: tambah akun konselor
+router.post('/konselor', butuhKonselor, butuhAdmin, async (req, res) => {
+  const { username, nama, sandi, peran } = req.body || {};
+  if (!username || !nama || !sandi) return res.status(400).json({ error: 'username, nama, dan sandi wajib diisi' });
+  if (peran && !['konselor', 'admin'].includes(peran)) return res.status(400).json({ error: 'peran tidak valid' });
+  try {
+    db.prepare('INSERT INTO konselor (username, nama, sandi_hash, peran, aktif, gagal, dibuat) VALUES (?,?,?,?,?,?,?)')
+      .run(username.trim(), nama.trim(), await hashSandi(sandi), peran || 'konselor', 1, 0, Date.now());
+  } catch (e) {
+    return res.status(409).json({ error: 'username sudah dipakai' });
+  }
+  catat(req.konselor.username, 'tambah konselor', username.trim(), req.ip);
+  res.status(201).json({ ok: true });
+});
+
+// PATCH /api/dashboard/konselor/:id/aktif — admin saja: aktifkan/nonaktifkan akun
+router.patch('/konselor/:id/aktif', butuhKonselor, butuhAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: 'id tidak valid' });
+  if (id === req.konselor.id) return res.status(400).json({ error: 'tidak dapat mengubah akun sendiri' });
+  const aktif = req.body && req.body.aktif ? 1 : 0;
+  const hasil = db.prepare('UPDATE konselor SET aktif=? WHERE id=?').run(aktif, id);
+  if (hasil.changes === 0) return res.status(404).json({ error: 'akun tidak ditemukan' });
+  catat(req.konselor.username, aktif ? 'aktifkan konselor' : 'nonaktifkan konselor', String(id), req.ip);
+  res.json({ ok: true, aktif: !!aktif });
 });
 
 module.exports = router;

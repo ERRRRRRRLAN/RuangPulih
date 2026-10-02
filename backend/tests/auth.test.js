@@ -8,6 +8,8 @@ const { hashSandi } = require('../src/security');
 
 let server, baseUrl;
 test.before(async () => {
+  db.prepare('DELETE FROM pesan').run();        // FK: pesan → konselor & pengaduan
+  db.prepare('DELETE FROM pengaduan').run();    // FK: pengaduan.ditangani_oleh → konselor
   db.prepare('DELETE FROM audit_log').run();
   db.prepare('DELETE FROM konselor').run();
   const h = await hashSandi('rahasia123');

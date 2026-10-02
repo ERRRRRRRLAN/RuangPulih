@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS pengaduan (
   cerita_enc TEXT NOT NULL,                 -- AES-GCM
   kontak_enc TEXT,                          -- AES-GCM, boleh NULL (minimisasi data)
   status TEXT NOT NULL DEFAULT 'Diterima',  -- Diterima->Ditinjau->Dalam Penanganan->Selesai
+  darurat INTEGER NOT NULL DEFAULT 0,            -- 1 =butuh penanganan prioritas
+  lokasi TEXT,                                   -- kota/wilayah, opsional (minimisasi data)
   dibaca INTEGER NOT NULL DEFAULT 0,        -- 0 = belum dibaca konselor
   ditangani_oleh INTEGER REFERENCES konselor(id),
   dibuat INTEGER NOT NULL,

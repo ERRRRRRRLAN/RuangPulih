@@ -268,17 +268,6 @@
     setTimeout(function () { el.classList.remove('shake'); }, 450);
   }
 
-  function randomCode(prefix, len) {
-    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    var s = '';
-    for (var i = 0; i < len; i++) s += chars.charAt(Math.floor(Math.random() * chars.length));
-    var d = new Date();
-    var y = d.getFullYear();
-    var m = String(d.getMonth() + 1).padStart(2, '0');
-    var day = String(d.getDate()).padStart(2, '0');
-    return prefix + '-' + y + m + day + '-' + s;
-  }
-
   function copyText(text, doneMsg) {
     function fallback() {
       var ta = document.createElement('textarea');
@@ -302,9 +291,8 @@
   var formPengaduan = $('#formPengaduan');
   var bodyPengaduan = $('#bodyPengaduan');
   var hasilPengaduan = $('#hasilPengaduan');
-  var databaseTiket = {}; // simulasi penyimpanan tiket (prototype)
 
-  formPengaduan.addEventListener('submit', function (e) {
+  formPengaduan.addEventListener('submit', async function (e) {
     e.preventDefault();
 
     var untuk = formPengaduan.querySelector('input[name="untuk"]:checked');
@@ -343,27 +331,49 @@
       return;
     }
 
-    var tiket = randomCode('PN', 4);
-    var idPelapor = randomCode('ID', 6);
-    databaseTiket[tiket] = {
-      status: darurat.value === 'Ya' ? 'Prioritas — ditindaklanjuti hari ini'
-              : 'Diterima — menunggu giliran tim rujukan',
+    var payload = {
       untuk: untuk.value,
-      zat: chipStore.value.join(', '),
-      waktu: new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
+      kategori: chipStore.value.join(', '),
+      frekuensi: ($('#inputFrekuensi') ? $('#inputFrekuensi').value.trim() : ''),
+      usia: ($('#inputUsia') ? Number($('#inputUsia').value.trim()) || null : null),
+      cerita: cerita.value.trim(),
+      darurat: darurat.value === 'Ya',
+      kontak: ($('#inputKontakPelapor') ? $('#inputKontakPelapor').value.trim() : '')
     };
 
-    $('#hasilTiket').textContent = tiket;
-    $('#hasilID').textContent = idPelapor;
+    var tombol = formPengaduan.querySelector('button[type="submit"]');
+    tombol.disabled = true;
+    tombol.textContent = 'Mengirim...';
+    toast('Mengirim laporan...');
 
-    bodyPengaduan.hidden = true;
-    hasilPengaduan.hidden = false;
-    hasilPengaduan.classList.add('show');
-    toast('Laporan tercatat. Simpan nomor tiket Anda.');
+    try {
+      var res = await fetch('/api/pengaduan/baru', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      var json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'gagal');
 
-    $('#salinTiket').onclick = function () {
-      copyText(tiket + ' | ID: ' + idPelapor, 'Tiket disalin ke clipboard');
-    };
+      var tiket = json.no_tiket;
+      var idPelapor = json.id_pelapor;
+
+      $('#hasilTiket').textContent = tiket;
+      $('#hasilID').textContent = idPelapor;
+
+      bodyPengaduan.hidden = true;
+      hasilPengaduan.hidden = false;
+      hasilPengaduan.classList.add('show');
+      toast('Laporan tercatat. Simpan nomor tiket Anda.');
+
+      $('#salinTiket').onclick = function () {
+        copyText(tiket + ' | ID: ' + idPelapor, 'Tiket disalin ke clipboard');
+      };
+    } catch (err) {
+      toast('Gagal mengirim: ' + err.message + '. Cek koneksi, lalu coba lagi.');
+      tombol.disabled = false;
+      tombol.textContent = 'Kirim Laporan';
+    }
   });
 
   /* ===================== CEK STATUS ===================== */
@@ -373,7 +383,7 @@
   var statusBadge = $('#statusBadge');
   var statusText = $('#statusText');
 
-  formStatus.addEventListener('submit', function (e) {
+  formStatus.addEventListener('submit', async function (e) {
     e.preventDefault();
     var kode = inputTiket.value.trim().toUpperCase();
     if (!kode) {
@@ -381,19 +391,23 @@
       toast('Masukkan nomor tiket dulu.');
       return;
     }
-    var data = databaseTiket[kode];
     statusResult.hidden = false;
     statusResult.classList.remove('show');
     void statusResult.offsetWidth;
     statusResult.classList.add('show');
-    if (data) {
-      statusBadge.textContent = data.status.split('—')[0].trim();
-      statusText.textContent = 'Laporan untuk ' + data.untuk.toLowerCase() +
-        ' terkait ' + data.zat.toLowerCase() + '. Diterima ' + data.waktu +
-        '. Tim rujukan akan menghubungi Anda jika Anda meninggalkan kontak.';
-    } else {
-      statusBadge.textContent = 'Tidak ditemukan';
-      statusText.textContent = 'Nomor tiket "' + kode + '" tidak ada di sistem kami. Periksa kembali penulisannya, atau buat laporan baru jika tiket hilang.';
+    try {
+      var res = await fetch('/api/pengaduan/status/' + encodeURIComponent(kode));
+      var data = await res.json();
+      if (res.ok) {
+        statusBadge.textContent = data.status;
+        statusText.textContent = data.deskripsi;
+      } else {
+        statusBadge.textContent = 'Tidak ditemukan';
+        statusText.textContent = 'Nomor tiket "' + kode + '" tidak ada di sistem kami. Periksa kembali penulisannya, atau buat laporan baru jika tiket hilang.';
+      }
+    } catch (err) {
+      statusBadge.textContent = 'Gagal';
+      statusText.textContent = 'Tidak bisa mengecek status sekarang. Cek koneksi Anda, lalu coba lagi.';
     }
   });
 
@@ -436,15 +450,9 @@
   var btnSend = formChat.querySelector('.btn-send');
   var resetChat = $('#resetChat');
   var sesiLabel = $('#sesiLabel');
+  var socket = null;
+  var antrianChat = []; // pesan tertahan sebelum socket siap
   var sedangMengetik = false;
-
-  function kodeSesi() {
-    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    var s = '';
-    for (var i = 0; i < 4; i++) s += chars.charAt(Math.floor(Math.random() * chars.length));
-    return s;
-  }
-  sesiLabel.textContent = 'Sesi #' + kodeSesi();
 
   function jam() {
     return new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
@@ -465,70 +473,47 @@
     return div;
   }
 
-  function typing() {
-    var div = document.createElement('div');
-    div.className = 'typing';
-    div.setAttribute('aria-hidden', 'true');
-    div.innerHTML = '<i></i><i></i><i></i>';
-    chatBody.appendChild(div);
-    chatBody.scrollTop = chatBody.scrollHeight;
-    return div;
-  }
-
-  function balas(pesan) {
-    var teks = pesan.toLowerCase();
-    var kata = {
-      darurat: ['darurat', 'mendesak', 'overdosis', 'tidak sadar', 'napas', 'keracunan', 'pingsan'],
-      krisis: ['menyakiti', 'bunuh', 'ingin mati', 'mengakhiri', 'menyakiti diri', 'berpikir untuk mati'],
-      stres: ['stres', 'cemas', 'takut', 'sedih', 'depresi', 'kepikiran', 'panik', 'capek', 'lelah'],
-      berhenti: ['berhenti', 'sulit', 'ketergantungan', 'ketagihan', 'kambuh', 'menghentikan'],
-      rehab: ['rehabilitasi', 'daftar', 'program', 'detoks', 'rawat inap', 'rawat jalan', 'pusat'],
-      anonim: ['anonim', 'aman', 'privasi', 'nama', 'rahasia', 'bocor'],
-      sapa: ['halo', 'hai', 'selamat', 'selamat pagi', 'selamat siang', 'selamat malam', 'test', 'tes'],
-      terima: ['terima kasih', 'makasih', 'tks']
-    };
-
-    if (kata.darurat.some(function (k) { return teks.indexOf(k) >= 0; })) {
-      return 'Kalau ada yang mengancam nyawa sekarang, telepon 119 atau langsung ke IGD terdekat. Jika overdosis: posisikan tubuh miring ke satu sisi, jangan tinggalkan sendirian, dan bawa kemasan zatnya agar tenaga medis tahu penanganannya. Cerita Anda tetap di sini setelahnya, tidak ke mana-mana.';
+  // Sambungan ke server: pesan langsung diteruskan ke konselor manusia
+  function socketSiap() {
+    if (socket && socket.readyState === 1) return true;
+    if (!socket) {
+      try {
+        var tiket = window.__tiketChat || sessionStorage.getItem('tiket-aktif');
+        var url = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws';
+        if (tiket) url += '?tiket=' + encodeURIComponent(tiket);
+        socket = new WebSocket(url);
+      } catch (e) { return false; }
+      socket.onopen = function () {
+        sesiLabel.textContent = 'Terhubung ke konselor';
+        while (antrianChat.length) socket.send(antrianChat.shift());
+      };
+      socket.onmessage = function (ev) {
+        try {
+          var m = JSON.parse(ev.data);
+          if (m.type === 'pesan') bubble(m.isi, m.pengirim === 'user' ? 'out' : 'in');
+          else if (m.type === 'history' && Array.isArray(m.pesan)) m.pesan.forEach(function (p) { bubble(p.isi, p.pengirim === 'user' ? 'out' : 'in'); });
+          else if (m.error) bubble('Pesan gagal terkirim: ' + m.error, 'in');
+        } catch (e) { /* abaikan format aneh */ }
+      };
+      socket.onclose = function () {
+        sesiLabel.textContent = 'Koneksi terputus';
+        socket = null;
+      };
     }
-    if (kata.krisis.some(function (k) { return teks.indexOf(k) >= 0; })) {
-      return 'Yang Anda rasakan berat, dan saya senang Anda menyampaikannya. Untuk pikiran seperti ini, hubungi 119 atau 188 sekarang — ada orang yang akan mendampingi langsung. Saya tetap di sini kalau mau lanjut bercerita setelahnya.';
-    }
-    if (kata.berhenti.some(function (k) { return teks.indexOf(k) >= 0; })) {
-      return 'Niat untuk berhenti itu langkah besar, dan memang wajar kalau terasa berat — ketergantungan bekerja begitu. Anda tidak harus melakukannya sendirian. Mau ceritakan sudah mencoba cara apa sejauh ini, atau mau saya jelaskan opsi pendampingannya?';
-    }
-    if (kata.rehab.some(function (k) { return teks.indexOf(k) >= 0; })) {
-      return 'Ada empat jalur: detoksifikasi (3 sampai 10 hari, butuh pengawasan medis), rawat inap (1 sampai 6 bulan), rawat jalan (8 sampai 12 minggu, tetap aktivitas harian), dan aftercare kelompok dukungan. Pilihannya tergantung seberapa kuat ketergantungannya dan seberapa besar dukungan di sekitar Anda. Mau isi formulir minat di bagian rehabilitasi agar konselor menindaklanjutinya?';
-    }
-    if (kata.stres.some(function (k) { return teks.indexOf(k) >= 0; })) {
-      return 'Terima kasih sudah berbagi. Berat hal yang Anda pikirkan, dan wajar kalau semuanya terasa menumpuk. Kalau nyaman, ceritakan apa yang paling membebani Anda sekarang — tidak perlu rapi, tidak perlu urut.';
-    }
-    if (kata.anonim.some(function (k) { return teks.indexOf(k) >= 0; })) {
-      return 'Sesinya tidak meminta nama, nomor, atau email. Tidak ada rekam jejak yang dikaitkan ke Anda, dan isi obrolan tidak diteruskan ke pihak mana pun. Satu-satunya pengecualian: kalau ada nyawa terancam, kami akan mengarahkan Anda ke jalur darurat.';
-    }
-    if (kata.sapa.some(function (k) { return teks.indexOf(k) >= 0; })) {
-      return 'Halo. Senang Anda mampir. Ini ruang untuk cerita apa pun seputar narkotika — untuk diri sendiri, keluarga, atau teman. Mau mulai dari mana?';
-    }
-    if (kata.terima.some(function (k) { return teks.indexOf(k) >= 0; })) {
-      return 'Sama-sama. Kalau nanti ada yang ingin disampaikan lagi, ruang ini tetap buka untuk Anda. Jaga diri Anda.';
-    }
-    return 'Saya dengarkan. Mau ceritakan lebih lanjut tentang situasinya — kapan mulai, dan bagaimana kondisinya sekarang? Kalau lebih nyaman, pilih salah satu topik di bawah kotak chat ini.';
+    return false;
   }
 
   function kirimPesan(teks) {
-    if (sedangMengetik) return;
+    var tiket = window.__tiketChat || sessionStorage.getItem('tiket-aktif');
+    var payload = JSON.stringify({ type: 'pesan', tiket: tiket, isi: teks });
     bubble(teks, 'out');
     inputChat.value = '';
     btnSend.disabled = true;
-    sedangMengetik = true;
-
-    var t = typing();
-    setTimeout(function () {
-      if (t.parentNode) t.parentNode.removeChild(t);
-      bubble(balas(teks), 'in');
-      sedangMengetik = false;
-      inputChat.focus();
-    }, 900 + Math.random() * 700);
+    if (socketSiap()) {
+      socket.send(payload);
+    } else {
+      antrianChat.push(payload);
+    }
   }
 
   formChat.addEventListener('submit', function (e) {
