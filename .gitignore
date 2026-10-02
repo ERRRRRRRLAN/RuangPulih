@@ -1,11 +1,22 @@
-# Rahasia & data
+# Rahasia — JANGAN commit
 .env
+backend/.env
+
+# Database
 *.db
 *.db-journal
+backend/ruangpulih.db
+
+# Dependency
+node_modules/
+
+# Log & cache
+*.log
+npm-debug.log*
+.DS_Store
+
+# Sisa scaffold python (dibuang, jangan balik)
+venv/
 __pycache__/
 *.pyc
-.pytest_cache/
-venv/
-node_modules/
-# Sementara
-backend/seed_demo.py
+backend/venv/
