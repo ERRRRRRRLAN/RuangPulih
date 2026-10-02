@@ -24,4 +24,25 @@ for (const f of files) {
   }
 }
 console.log(`\nTOTAL: ${files.length} file, pass ${totalPass}, fail ${totalFail}`);
-process.exit(gagal ? 1 : 0);
+
+// Test suite chat/auth sengaja mengosongkan & mengganti tabel konselor,
+// jadi akun admin dev hilang setiap run. Pulihkan otomatis di sini.
+try {
+  const db = require('./src/db');
+  const { hashSandi } = require('./src/security');
+  const ada = db.prepare('SELECT 1 FROM konselor WHERE username=?').get('admin');
+  if (!ada) {
+    // hashSandi async — pakai IIFE lalu exit di dalamnya
+    (async () => {
+      db.prepare('INSERT OR REPLACE INTO konselor (id,username,nama,sandi_hash,peran,aktif,gagal,dibuat) VALUES (?,?,?,?,?,?,?,?)')
+        .run(2, 'admin', 'Admin Utama', await hashSandi('admin12345'), 'admin', 1, 0, Date.now());
+      console.log('OK admin dev dipulihkan otomatis');
+      process.exit(gagal ? 1 : 0);
+    })();
+  } else {
+    process.exit(gagal ? 1 : 0);
+  }
+} catch (e) {
+  console.error('gagal memulihkan admin dev:', e.message);
+  process.exit(gagal ? 1 : 0);
+}
