@@ -11,9 +11,16 @@ const { seedLayanan } = require('./seedLayanan');
 const app = express();
 app.use(express.json({ limit: '64kb' }));
 app.use(cookieParser());
+app.use(require('./middleware/securityHeaders'));
 
 // Trust proxy (httpOnly cookie aman di balik reverse proxy)
 app.set('trust proxy', 1);
+
+// Rate limit per endpoint (T8.1)
+const rateLimit = require('./middleware/rateLimit');
+app.use('/api/auth/login', rateLimit({ windowMs: 60_000, max: 5 }));   // login: 5x/menit
+app.use('/api/pengaduan', rateLimit({ windowMs: 60_000, max: 10 }));  // pengaduan: 10x/menit
+app.use('/api', rateLimit());                                          // umum: 30x/menit
 
 // Route API
 app.use('/api/auth', require('./routes/auth'));
