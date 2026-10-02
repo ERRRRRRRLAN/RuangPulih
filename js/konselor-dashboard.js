@@ -34,12 +34,13 @@ async function api(path, opts) {
   try {
     state.saya = await api('/api/auth/me');
   } catch (e) {
-    location.href = '/konselor/login.html';
+    location.href = '/konselor/masuk';
     return;
   }
   if (state.saya.peran === 'admin') $('#tabAdmin').hidden = false;
   muatStatistik();
   muatAntrian();
+  sambungDashboardWS();
   $('#btnLogout').addEventListener('click', logout);
   $('#filterStatus').addEventListener('change', muatAntrian);
   $('#tabAntrian').addEventListener('click', function () { gantiTab('antrian'); });
@@ -54,7 +55,7 @@ async function api(path, opts) {
 
 async function logout() {
   try { await api('/api/auth/logout', { method: 'POST' }); } catch (e) { /* abaikan */ }
-  location.href = '/konselor/login.html';
+  location.href = '/konselor/masuk';
 }
 
 function gantiTab(t) {
@@ -73,6 +74,8 @@ async function muatStatistik() {
     $('#stBaru').textContent = s.baru;
     $('#stAktif').textContent = s.aktif;
     $('#stSelesai').textContent = s.selesai;
+    if ($('#stDarurat')) $('#stDarurat').textContent = s.darurat || 0;
+    if ($('#stHari')) $('#stHari').textContent = s.sehari || 0;
   } catch (e) { /* statistik non-kritis */ }
 }
 
@@ -154,6 +157,39 @@ async function simpanStatus() {
 }
 
 /* ---------- chat WS konselor ---------- */
+// Koneksi "live" dashboard: dengarkan pengaduan baru & pesan masuk,
+// refresh antrian + statistik secara otomatis tanpa reload.
+function sambungDashboardWS() {
+  var url = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws';
+  try { state.wsLive = new WebSocket(url); } catch (e) { return; }
+  state.wsLive.onmessage = function (ev) {
+    try {
+      var m = JSON.parse(ev.data);
+      if (m.type === 'hello') { state.wsLiveSid = m.sid; return; }
+      if (m.type === 'pengaduan_baru') {
+        muatStatistik();
+        muatAntrian();
+        notifLive((m.darurat ? 'Laporan darurat baru' : 'Laporan baru') + ': ' + m.tiket);
+      }
+    } catch (e) { /* abaikan */ }
+  };
+  state.wsLive.onclose = function () {
+    setTimeout(function () { if (!state.wsLive || state.wsLive.readyState === 3) sambungDashboardWS(); }, 3000);
+  };
+}
+
+function notifLive(teks) {
+  var n = document.createElement('div');
+  n.className = 'toast-dash';
+  n.textContent = teks;
+  document.body.appendChild(n);
+  requestAnimationFrame(function () { n.classList.add('show'); });
+  setTimeout(function () {
+    n.classList.remove('show');
+    setTimeout(function () { n.remove(); }, 350);
+  }, 4200);
+}
+
 function sambungWS(tiket) {
   var url = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws?tiket=' + encodeURIComponent(tiket);
   // cookie HttpOnly 'session' ikut otomatis, jadi konselor terauth tanpa JS menyentuh token
@@ -163,9 +199,11 @@ function sambungWS(tiket) {
   ws.onmessage = function (ev) {
     try {
       var m = JSON.parse(ev.data);
+      if (m.type === 'hello') { state.wsSid = m.sid; return; }
       if (m.type === 'history' && Array.isArray(m.pesan)) {
         m.pesan.forEach(function (p) { bubbleChat(p.isi, p.pengirim === 'user' ? 'in' : 'out'); });
       } else if (m.type === 'pesan') {
+        if (m.sid && m.sid === state.wsSid) return; // pesan kita sendiri, jangan double
         bubbleChat(m.isi, m.pengirim === 'user' ? 'in' : 'out');
       } else if (m.error) {
         bubbleChat('Pesan gagal: ' + m.error, 'in');

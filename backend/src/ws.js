@@ -1,8 +1,13 @@
 // WebSocket chat real-time: 2 peran — anonim (no_tiket) & konselor (JWT).
+// Setiap koneksi dapat sid (session id) unik supaya pengirim TIDAK menerima
+// pesannya sendiri dua kali (pengirim sudah render bubble secara lokal).
 const { WebSocketServer } = require('ws');
 const { verifikasiJWT, encrypt, decrypt } = require('./security');
 const db = require('./db');
 const audit = require('./audit');
+const crypto = require('crypto');
+
+let wssRef = null; // disimpan untuk broadcast cross-route (dashboard auto-update)
 
 function parseCookie(header) { // cookie jar -> object
   const out = {};
@@ -17,7 +22,8 @@ function parseCookie(header) { // cookie jar -> object
 
 function pasang(server) {
   const wss = new WebSocketServer({ server, path: '/ws' });
-  const klien = new Set(); // {tiket?, konselor?, ws}
+  wssRef = wss;
+  const klien = new Set(); // {tiket?, konselor?, sid, ws}
 
   wss.on('connection', (ws, req) => {
     const url = new URL(req.url, 'http://x');
@@ -38,13 +44,21 @@ function pasang(server) {
       sesi.tiket = tiket;
     } else return ws.close(4000, 'butuh tiket atau token');
 
-    const klienSesi = { ...sesi, ws };
+    const sid = crypto.randomBytes(8).toString('hex');
+    ws.__sid = sid;
+    ws.__konselor = sesi.konselor || null;
+    ws.__tiket = sesi.tiket || null;
+
+    // perkenalkan sid ke klien supaya ia bisa mengabaikan pesannya sendiri
+    ws.send(JSON.stringify({ type: 'hello', sid }));
+
+    const klienSesi = { ...sesi, sid, ws };
     klien.add(klienSesi);
     ws.on('close', () => klien.delete(klienSesi));
 
-    // kirim history pesan tiket ini
-    const tujuan = sesi.tiket || null;
-    if (tujuan) kirimHistory(ws, tujuan);
+    // kirim history pesan tiket ini (berlaku untuk pelapor MAUPUN konselor
+    // yang membuka ?tiket=X — selama tiket valid di koneksi ini)
+    if (sesi.tiket) kirimHistory(ws, sesi.tiket);
 
     ws.on('message', (data) => {
       let m;
@@ -53,7 +67,7 @@ function pasang(server) {
       if (String(m.isi).length > 2000) return ws.send(JSON.stringify({ error: 'pesan maksimal 2000 karakter' }));
       if (!m.tiket) return;
 
-      const p = db.prepare('SELECT no_tiket FROM pengaduan WHERE no_tiket=?').get(m.tiket);
+      const p = db.prepare('SELECT no_tiket,darurat FROM pengaduan WHERE no_tiket=?').get(m.tiket);
       if (!p) return ws.send(JSON.stringify({ error: 'tiket tidak ditemukan' }));
 
       // anonim HANYA bisa kirim ke tiketnya sendiri
@@ -64,8 +78,9 @@ function pasang(server) {
       db.prepare('INSERT INTO pesan (no_tiket, pengirim, pengirim_id, isi_enc, dibuat) VALUES (?,?,?,?,?)')
         .run(m.tiket, pengirim, sesi.konselor ? sesi.konselor.id : null, encrypt(String(m.isi)), sekarang);
 
-      const payload = JSON.stringify({ type: 'pesan', tiket: m.tiket, pengirim, isi: String(m.isi), dibuat: sekarang });
-      // kirim ke pengirim + semua klien yang relevan (pemilik tiket / konselor di tiket itu)
+      // sid disertakan: klien pengirim akan mengabaikan pesannya sendiri,
+      // klien/tab lain (termasuk tab konselor & pelapor lain) tetap menerimanya.
+      const payload = JSON.stringify({ type: 'pesan', sid, tiket: m.tiket, pengirim, isi: String(m.isi), dibuat: sekarang });
       for (const k of klien) {
         const relevan = k.konselor ? true : (k.tiket === m.tiket);
         if (relevan && k.ws.readyState === 1) k.ws.send(payload);
@@ -81,4 +96,16 @@ function kirimHistory(ws, tiket) {
   ws.send(JSON.stringify({ type: 'history', tiket, pesan: rows.map(r => ({ pengirim: r.pengirim, isi: decrypt(r.isi_enc), dibuat: r.dibuat })) }));
 }
 
-module.exports = { pasang };
+// Broadcast ke SEMUA konselor yang sedang online (dashboard auto-update).
+// Dipanggil dari routes saat ada pengaduan baru / perubahan status.
+function broadcastKonselor(payload, kecualiSid) {
+  if (!wssRef) return;
+  const data = typeof payload === 'string' ? payload : JSON.stringify(payload);
+  for (const ws of wssRef.clients) {
+    if (ws.readyState !== 1 || !ws.__konselor) continue;
+    if (kecualiSid && ws.__sid === kecualiSid) continue;
+    ws.send(data);
+  }
+}
+
+module.exports = { pasang, broadcastKonselor };

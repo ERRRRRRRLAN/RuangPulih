@@ -33,6 +33,23 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const opsiStatic = { extensions: ['html'], maxAge: 0 };
 app.use(express.static(ROOT, opsiStatic));
 
+// URL bersih (profesional, tanpa ekstensi .html):
+//   /konselor          -> /konselor/login.html (atau dashboard jika sudah login)
+//   /konselor/masuk    -> /konselor/login.html
+//   /konselor/dashboard-> /konselor/dashboard.html
+// dan jalankan .html lama agar bookmark lama tetap jalan.
+app.get(['/konselor', '/konselor/masuk', '/konselor/login'], (req, res) => {
+  res.sendFile(path.join(ROOT, 'konselor', 'login.html'));
+});
+app.get('/konselor/dashboard', ambilSesi, (req, res) => {
+  res.sendFile(path.join(ROOT, 'konselor', 'dashboard.html'));
+});
+// redirect .html -> URL bersih (301 permanen, hapus jejak .html lama)
+app.get(['/konselor/login.html', '/konselor/dashboard.html'], (req, res) => {
+  const bersih = req.url.replace(/\.html$/, '').replace('/login', '/masuk');
+  res.redirect(301, bersih);
+});
+
 // Fallback: rute non-API & non-file → index.html
 app.use((req, res, next) => {
   if (req.url.startsWith('/api/')) return next();

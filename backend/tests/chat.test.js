@@ -42,7 +42,12 @@ function terima(ws, timeout = 2000) {
   return new Promise((resolve, reject) => {
     const t = setTimeout(() => reject(new Error('timeout')), timeout);
     const cek = () => {
-      if (ws._q.length) { clearTimeout(t); resolve(ws._q.shift()); }
+      if (ws._q.length) {
+        clearTimeout(t);
+        const m = ws._q.shift();
+        if (m.type === 'hello') { setTimeout(cek, 15); return; } // handshake sid, bukan pesan
+        resolve(m);
+      }
       else setTimeout(cek, 15);
     };
     cek();

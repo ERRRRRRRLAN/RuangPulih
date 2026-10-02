@@ -16,7 +16,7 @@ form.addEventListener('submit', async function (e) {
       body: JSON.stringify({ username: form.username.value.trim(), sandi: form.sandi.value })
     });
     if (r.ok) {
-      location.href = '/konselor/dashboard.html';
+      location.href = '/konselor/dashboard';
       return;
     }
     var b = await r.json().catch(function () { return {}; });

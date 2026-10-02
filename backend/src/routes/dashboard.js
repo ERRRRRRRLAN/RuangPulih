@@ -13,7 +13,9 @@ router.get('/stats', butuhKonselor, (req, res) => {
   const aktif = db.prepare("SELECT COUNT(*) c FROM pengaduan WHERE status='Ditinjau' OR status='Dalam Penanganan'").get().c;
   const selesai = db.prepare("SELECT COUNT(*) c FROM pengaduan WHERE status='Selesai'").get().c;
   const belumDibaca = db.prepare('SELECT COUNT(*) c FROM pengaduan WHERE dibaca=0').get().c;
-  res.json({ total, baru, aktif, selesai, belumDibaca });
+  const darurat = db.prepare("SELECT COUNT(*) c FROM pengaduan WHERE darurat=1 AND status!='Selesai'").get().c;
+  const sehari = db.prepare('SELECT COUNT(*) c FROM pengaduan WHERE dibuat >= ?').get(Date.now() - 24 * 60 * 60 * 1000).c;
+  res.json({ total, baru, aktif, selesai, belumDibaca, darurat, sehari });
 });
 
 // GET /api/dashboard/antrian — daftar tiket dengan filter status + pagination

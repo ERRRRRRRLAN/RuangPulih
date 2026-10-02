@@ -5,6 +5,7 @@ const db = require('../db');
 const { encrypt, decrypt } = require('../security');
 const { butuhKonselor } = require('../deps');
 const audit = require('../audit');
+const { broadcastKonselor } = require('../ws');
 const crypto = require('crypto');
 
 function buatTiket(d = new Date()) {
@@ -38,6 +39,7 @@ function buatPengaduan(req, res) {
         darurat ? 1 : 0, lokasi || null, sekarang);
 
   audit.catat(`user:${no_tiket}`, 'BUAT_PENGADUAN', `id=${info.lastInsertRowid}`, req.ip);
+  broadcastKonselor({ type: 'pengaduan_baru', tiket: no_tiket, darurat: darurat ? 1 : 0, untuk: String(untuk), kategori: String(kategori) });
   res.status(201).json({ no_tiket, status: 'Diterima' });
 }
 router.post('/', buatPengaduan);

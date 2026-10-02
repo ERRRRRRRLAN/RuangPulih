@@ -73,8 +73,39 @@
 
   navToggle.addEventListener('click', function () {
     var open = navLinks.classList.toggle('open');
-    navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    navToggle.setAttribute('aria-expanded', String(open));
   });
+
+  /* ---------- navbar mengecil & dapat shadow saat halaman digulir ---------- */
+  var header = document.querySelector('header.site-header');
+  if (header) {
+    var sudahGulir = false;
+    window.addEventListener('scroll', function () {
+      var gulir = window.scrollY > 8;
+      if (gulir !== sudahGulir) {
+        sudahGulir = gulir;
+        header.classList.toggle('gulir', gulir);
+      }
+    }, { passive: true });
+  }
+
+  /* ---------- scrollspy: tandai menu navbar sesuai section terlihat ---------- */
+  var menuLinks = Array.prototype.slice.call(document.querySelectorAll('.nav-links a[href^="#"]'));
+  function tandaiMenuAktif(id) {
+    menuLinks.forEach(function (a) {
+      var sedang = a.getAttribute('href') === '#' + id;
+      a.classList.toggle('active', sedang);
+      if (sedang) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
+    });
+  }
+  if ('IntersectionObserver' in window && menuLinks.length) {
+    var terlihat = '';
+    var pengamat = new IntersectionObserver(function (entri) {
+      entri.forEach(function (en) { if (en.isIntersecting) terlihat = en.target.id; });
+      if (terlihat) tandaiMenuAktif(terlihat);
+    }, { rootMargin: '-30% 0px -60% 0px', threshold: 0.01 });
+    document.querySelectorAll('main section[id]').forEach(function (s) { pengamat.observe(s); });
+  }
   navLinks.addEventListener('click', function (e) {
     if (e.target.tagName === 'A') {
       navLinks.classList.remove('open');
@@ -358,6 +389,14 @@
       var tiket = json.no_tiket;
       var idPelapor = json.id_pelapor;
 
+      // otomatis-binding chat ke tiket ini, supaya pelapor bisa langsung
+      // chat dengan konselor tanpa perlu ketik tiket lagi
+      window.__tiketChat = tiket;
+      try { sessionStorage.setItem('tiket-aktif', tiket); } catch (e2) { /* mode privat */ }
+      if (typeof sesiLabel !== 'undefined' && sesiLabel) {
+        sesiLabel.textContent = 'Tiket ' + tiket + ' aktif';
+      }
+
       $('#hasilTiket').textContent = tiket;
       $('#hasilID').textContent = idPelapor;
 
@@ -490,7 +529,12 @@
       socket.onmessage = function (ev) {
         try {
           var m = JSON.parse(ev.data);
-          if (m.type === 'pesan') bubble(m.isi, m.pengirim === 'user' ? 'out' : 'in');
+          // jangan render pesan kita sendiri dua kali — kita sudah render lokal
+          if (m.type === 'hello') { socket.__sid = m.sid; return; }
+          if (m.type === 'pesan') {
+            if (m.sid && m.sid === socket.__sid) return; // pesan kita sendiri, abaikan
+            bubble(m.isi, m.pengirim === 'user' ? 'out' : 'in');
+          }
           else if (m.type === 'history' && Array.isArray(m.pesan)) m.pesan.forEach(function (p) { bubble(p.isi, p.pengirim === 'user' ? 'out' : 'in'); });
           else if (m.error) bubble('Pesan gagal terkirim: ' + m.error, 'in');
         } catch (e) { /* abaikan format aneh */ }
