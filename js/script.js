@@ -541,9 +541,9 @@
   pesanPembuka();
 
   /* ===================== HOTLINE KLIK ===================== */
-  $$('.hotline-card[href^="tel:"]').forEach(function (a) {
+  $$('.pita-cta a[href^="tel:"]').forEach(function (a) {
     a.addEventListener('click', function () {
-      toast('Menghubungi ' + a.querySelector('.hotline-num').textContent + '...');
+      toast('Menghubungi ' + a.textContent.trim() + '...');
     });
   });
 
