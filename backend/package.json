@@ -1,0 +1,11 @@
+{
+  "name": "ruang-pulih-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test tests/",
+    "seed": "node src/seed.js"
+  }
+}
