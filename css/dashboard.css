@@ -139,3 +139,24 @@
   .dash-tab, .dash-ghost, .btn-kecil { padding: 10px 12px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ---- halaman login (dipindah dari inline <style>, diblokir CSP) ---- */
+.login-wrap { max-width: 440px; margin: 96px auto 64px; padding: 40px; border-radius: 24px;
+  background: var(--bg); box-shadow: var(--out); }
+.login-wrap h1 { font-size: 1.5rem; margin: 0 0 8px; color: var(--text); }
+.login-wrap .sub { color: var(--text-mute); margin: 0 0 24px; font-size: .95rem; line-height: 1.5; }
+.login-wrap label { display: block; font-size: .88rem; margin: 18px 0 6px; color: var(--text-soft); }
+.login-wrap input { width: 100%; padding: 13px 15px; border: 0; border-radius: 12px;
+  background: var(--bg); box-shadow: var(--in); font: inherit; color: var(--text); outline: none; }
+.login-wrap input:focus { box-shadow: var(--in-deep); }
+.err { color: var(--danger); margin: 14px 0 0; min-height: 1.3em; font-size: .9rem; }
+.btn-masuk { width: 100%; margin-top: 22px; padding: 14px; border: 0; border-radius: 14px;
+  background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer;
+  box-shadow: var(--out-sm); transition: transform .18s ease, box-shadow .18s ease; }
+.btn-masuk:hover { transform: translateY(-1px); box-shadow: var(--out); }
+.btn-masuk:active { transform: translateY(0); box-shadow: var(--in); }
+.kembali { display: block; margin-top: 20px; text-align: center; color: var(--text-mute);
+  text-decoration: none; font-size: .88rem; }
+.kembali:hover { color: var(--accent); }
+.audit-title { margin-top: 32px; }
+@media (max-width: 560px) { .login-wrap { margin: 40px auto; padding: 28px 22px; } }
