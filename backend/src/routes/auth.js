@@ -11,7 +11,7 @@ const MAKS_GAGAL = 5, KUNCI_MS = 15 * 60 * 1000;
 router.post('/login', async (req, res) => {
   const { username, sandi } = req.body || {};
   const ip = req.ip;
-  const k = db.prepare('SELECT * FROM konselor WHERE username=?').get(String(username || ''));
+  const k = await db.prepare('SELECT * FROM konselor WHERE username=$1').get(String(username || ''));
 
   // Brute-force lockout: terkunci_sampai sudah di-SET pada percobaan ke-(MAKS) yang gagal.
   // Tampilan di sini berarti ini percobaan ke-MAKS+1 — tolak tanpa menghitung.
@@ -25,7 +25,7 @@ router.post('/login', async (req, res) => {
     if (k) {
       const gagal = k.gagal + 1;
       const terkunci = gagal >= MAKS_GAGAL;
-      db.prepare('UPDATE konselor SET gagal=?, terkunci_sampai=? WHERE id=?')
+      await db.prepare('UPDATE konselor SET gagal=$1, terkunci_sampai=$2 WHERE id=$3')
         .run(gagal, terkunci ? Date.now() + KUNCI_MS : null, k.id);
       if (terkunci) {
         audit.catat(k.username, 'LOGIN_DIKUNCI', 'terkunci setelah ' + gagal + ' gagal', ip);
@@ -36,7 +36,7 @@ router.post('/login', async (req, res) => {
     return res.status(401).json({ error: 'username atau sandi salah' });
   }
 
-  db.prepare('UPDATE konselor SET gagal=0, terkunci_sampai=NULL WHERE id=?').run(k.id);
+  await db.prepare('UPDATE konselor SET gagal=0, terkunci_sampai=NULL WHERE id=$1').run(k.id);
   audit.catat(k.username, 'LOGIN', null, ip);
   const token = buatJWT({ id: k.id, peran: k.peran });
   res.cookie('session', token, {

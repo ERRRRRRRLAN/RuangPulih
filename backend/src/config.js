@@ -12,7 +12,6 @@ const config = {
   JWT_SECRET: need('JWT_SECRET'),
   JWT_TTL: process.env.JWT_TTL || '8h',
   PORT: process.env.PORT || 3000,
-  DB_PATH: process.env.DB_PATH || require('path').join(__dirname, '..', 'ruangpulih.db'),
   NODE_ENV: process.env.NODE_ENV || 'development',
 };
 

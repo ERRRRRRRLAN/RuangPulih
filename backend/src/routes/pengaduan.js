@@ -10,20 +10,19 @@ const crypto = require('crypto');
 
 function buatTiket(d = new Date()) {
   const tgl = d.toISOString().slice(0, 10).replace(/-/g, '');
-  const acak = crypto.randomBytes(2).toString('hex').toUpperCase(); // 4 hex chars
-  return `PN-${tgl}-${acak}`;
+  const acak = crypto.randomBytes(2).toString('hex').toUpperCase();
+  return 'PN-' + tgl + '-' + acak;
 }
-function publik(p) { // field pengaduan untuk response publik (tanpa cerita!)
+function publik(p) {
   return { no_tiket: p.no_tiket, untuk: p.untuk, kategori: p.kategori, frekuensi: p.frekuensi,
            usia: p.usia, status: p.status, darurat: !!p.darurat, dibuat: p.dibuat };
 }
-function lengkap(p) { // versi konselor: sertakan cerita & kontak didekripsi
+function lengkap(p) {
   return { ...publik(p), cerita: decrypt(p.cerita_enc), kontak: p.kontak_enc ? decrypt(p.kontak_enc) : null,
            lokasi: p.lokasi, ditangani_oleh: p.ditangani_oleh, diperbarui: p.diperbarui };
 }
 
-// POST /api/pengaduan(/baru) — publik, anonim, tanpa login
-function buatPengaduan(req, res) {
+async function buatPengaduan(req, res) {
   const { untuk, kategori, frekuensi, usia, cerita, kontak, lokasi, darurat } = req.body || {};
   if (!untuk || !kategori || !cerita || !String(cerita).trim())
     return res.status(400).json({ error: 'untuk, kategori, cerita wajib diisi' });
@@ -31,55 +30,53 @@ function buatPengaduan(req, res) {
 
   const no_tiket = buatTiket();
   const sekarang = Date.now();
-  const info = db.prepare(
-    `INSERT INTO pengaduan (no_tiket, untuk, kategori, frekuensi, usia, cerita_enc, kontak_enc, status, darurat, lokasi, dibuat)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+  const info = await db.prepare(
+    'INSERT INTO pengaduan (no_tiket, untuk, kategori, frekuensi, usia, cerita_enc, kontak_enc, status, darurat, lokasi, dibuat) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)'
   ).run(no_tiket, String(untuk), String(kategori), frekuensi || null, usia || null,
         encrypt(String(cerita)), kontak ? encrypt(String(kontak)) : null, 'Diterima',
         darurat ? 1 : 0, lokasi || null, sekarang);
 
-  audit.catat(`user:${no_tiket}`, 'BUAT_PENGADUAN', `id=${info.lastInsertRowid}`, req.ip);
+  audit.catat('user:' + no_tiket, 'BUAT_PENGADUAN', 'id=' + info.lastInsertRowid, req.ip);
   broadcastKonselor({ type: 'pengaduan_baru', tiket: no_tiket, darurat: darurat ? 1 : 0, untuk: String(untuk), kategori: String(kategori) });
   res.status(201).json({ no_tiket, status: 'Diterima' });
 }
 router.post('/', buatPengaduan);
-router.post('/baru', buatPengaduan); // alias: frontend lama masih pakai /baru
+router.post('/baru', buatPengaduan);
 
-// GET /api/pengaduan/:tiket — publik, hanya metadata + status (tidak kirim cerita)
-router.get('/:tiket', (req, res) => {
-  const p = db.prepare('SELECT * FROM pengaduan WHERE no_tiket=?').get(req.params.tiket);
+router.get('/:tiket', async (req, res) => {
+  const p = await db.prepare('SELECT * FROM pengaduan WHERE no_tiket=$1').get(String(req.params.tiket).toUpperCase());
   if (!p) return res.status(404).json({ error: 'tiket tidak ditemukan' });
-  res.json(publik(p));
+  const k = p.ditangani_oleh
+    ? await db.prepare('SELECT nama FROM konselor WHERE id=$1').get(p.ditangani_oleh)
+    : null;
+  res.json({ ...publik(p), konselor: k ? k.nama : null });
 });
 
-// GET /api/pengaduan — konselor: daftar tiket (filter status)
-router.get('/', butuhKonselor, (req, res) => {
+router.get('/', butuhKonselor, async (req, res) => {
   const rows = req.query.status
-    ? db.prepare('SELECT * FROM pengaduan WHERE status=? ORDER BY dibuat DESC').all(req.query.status)
-    : db.prepare('SELECT * FROM pengaduan ORDER BY dibuat DESC').all();
+    ? await db.prepare('SELECT * FROM pengaduan WHERE status=$1 ORDER BY dibuat DESC').all(req.query.status)
+    : await db.prepare('SELECT * FROM pengaduan ORDER BY dibuat DESC').all();
   res.json(rows.map(publik));
 });
 
-// GET /api/pengaduan/:tiket/detail — konselor: baca cerita (audit!) (PDF 3.8)
-router.get('/:tiket/detail', butuhKonselor, (req, res) => {
-  const p = db.prepare('SELECT * FROM pengaduan WHERE no_tiket=?').get(req.params.tiket);
+router.get('/:tiket/detail', butuhKonselor, async (req, res) => {
+  const p = await db.prepare('SELECT * FROM pengaduan WHERE no_tiket=$1').get(req.params.tiket);
   if (!p) return res.status(404).json({ error: 'tiket tidak ditemukan' });
   audit.catat(req.konselor.username, 'BACA_PENGADUAN', p.no_tiket, req.ip);
   res.json(lengkap(p));
 });
 
-// PATCH /api/pengaduan/:tiket/status — konselor: ubah status (flow PDF 3.6)
 const FLOW = ['Diterima', 'Ditinjau', 'Dalam Penanganan', 'Selesai'];
-router.patch('/:tiket/status', butuhKonselor, (req, res) => {
+router.patch('/:tiket/status', butuhKonselor, async (req, res) => {
   const baru = req.body && req.body.status;
-  if (!FLOW.includes(baru)) return res.status(400).json({ error: `status harus salah satu: ${FLOW.join(', ')}` });
-  const p = db.prepare('SELECT * FROM pengaduan WHERE no_tiket=?').get(req.params.tiket);
+  if (!FLOW.includes(baru)) return res.status(400).json({ error: 'status harus salah satu: ' + FLOW.join(', ') });
+  const p = await db.prepare('SELECT * FROM pengaduan WHERE no_tiket=$1').get(req.params.tiket);
   if (!p) return res.status(404).json({ error: 'tiket tidak ditemukan' });
 
   const sekarang = Date.now();
-  db.prepare('UPDATE pengaduan SET status=?, diperbarui=?, ditangani_oleh=COALESCE(ditangani_oleh,?) WHERE no_tiket=?')
+  await db.prepare('UPDATE pengaduan SET status=$1, diperbarui=$2, ditangani_oleh=COALESCE(ditangani_oleh,$3) WHERE no_tiket=$4')
     .run(baru, sekarang, req.konselor.id, p.no_tiket);
-  audit.catat(req.konselor.username, 'UBAH_STATUS', `${p.no_tiket}: ${p.status} -> ${baru}`, req.ip);
+  audit.catat(req.konselor.username, 'UBAH_STATUS', p.no_tiket + ': ' + p.status + ' -> ' + baru, req.ip);
   res.json({ no_tiket: p.no_tiket, status: baru });
 });
 

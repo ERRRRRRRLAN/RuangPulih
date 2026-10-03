@@ -27,6 +27,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/pengaduan', require('./routes/pengaduan'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/layanan', require('./routes/layanan'));
+app.use('/api/rujukan', require('./routes/rujukan'));
 
 // Frontend statis (root repo) — melayani index.html, css/, js/, konselor/
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -67,7 +68,7 @@ app.use((err, req, res, next) => {
 const server = http.createServer(app);
 require('./ws').pasang(server);
 
-seedLayanan();
+seedLayanan().catch(e => console.error('seed layanan gagal:', e.message));
 
 if (require.main === module) {
   server.listen(config.PORT, () => {

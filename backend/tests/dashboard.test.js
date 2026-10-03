@@ -10,7 +10,8 @@ const { hashSandi } = require('../src/security');
 let base, server;
 test.before(async () => {
   db.prepare('DELETE FROM pesan').run();
-  db.prepare('DELETE FROM audit_log').run(); db.prepare('DELETE FROM pengaduan').run(); db.prepare('DELETE FROM konselor').run();
+  db.prepare('DELETE FROM audit_log').run(); db.prepare('DELETE FROM pengaduan').run(); db.prepare('DELETE FROM minat_program').run(); db.prepare('DELETE FROM rujukan').run(); // FK: rujukan.dibuat_oleh -> konselor
+  db.prepare('DELETE FROM konselor').run();
   db.prepare('INSERT INTO konselor (id,username,nama,sandi_hash,peran,aktif,gagal,dibuat) VALUES (?,?,?,?,?,?,?,?)')
     .run(1, 'admin', 'Admin', await hashSandi('admin123'), 'admin', 1, 0, Date.now());
   db.prepare('INSERT INTO konselor (id,username,nama,sandi_hash,peran,aktif,gagal,dibuat) VALUES (?,?,?,?,?,?,?,?)')

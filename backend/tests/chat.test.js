@@ -9,7 +9,8 @@ const { hashSandi, buatJWT, encrypt } = require('../src/security');
 
 let server, base, app;
 test.before(async () => {
-  db.prepare('DELETE FROM pesan').run(); db.prepare('DELETE FROM pengaduan').run(); db.prepare('DELETE FROM konselor').run();
+  db.prepare('DELETE FROM pesan').run(); db.prepare('DELETE FROM pengaduan').run(); db.prepare('DELETE FROM minat_program').run(); db.prepare('DELETE FROM rujukan').run(); // FK: rujukan.dibuat_oleh -> konselor
+  db.prepare('DELETE FROM konselor').run();
   db.prepare('INSERT INTO konselor (id,username,nama,sandi_hash,peran,aktif,gagal,dibuat) VALUES (?,?,?,?,?,?,?,?)')
     .run(1, 'dr.sari', 'dr. Sari', await hashSandi('rahasia123'), 'konselor', 1, 0, Date.now());
   db.prepare('INSERT INTO pengaduan (no_tiket,untuk,kategori,cerita_enc,status,dibuat) VALUES (?,?,?,?,?,?)')

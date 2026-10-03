@@ -10,7 +10,9 @@ let server, baseUrl;
 test.before(async () => {
   db.prepare('DELETE FROM pesan').run();        // FK: pesan → konselor & pengaduan
   db.prepare('DELETE FROM pengaduan').run();    // FK: pengaduan.ditangani_oleh → konselor
+  db.prepare('DELETE FROM minat_program').run(); // FK: minat_program.ditangani_oleh → konselor
   db.prepare('DELETE FROM audit_log').run();
+  db.prepare('DELETE FROM rujukan').run(); // FK: rujukan.dibuat_oleh -> konselor
   db.prepare('DELETE FROM konselor').run();
   const h = await hashSandi('rahasia123');
   const stmt = db.prepare('INSERT INTO konselor (id,username,nama,sandi_hash,peran,aktif,gagal,dibuat) VALUES (?,?,?,?,?,?,?,?)');
