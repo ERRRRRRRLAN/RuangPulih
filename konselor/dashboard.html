@@ -201,7 +201,11 @@
         </div>
 
         <div class="chat-panel">
-          <h3>Chat dengan pelapor</h3>
+          <div class="chat-panel-head">
+            <h3>Chat dengan pelapor</h3>
+            <button type="button" id="mdQuickToggle" class="dash-ghost dash-ghost-kecil" aria-expanded="true" aria-controls="mdQuick">Balasan cepat</button>
+          </div>
+          <div class="chat-quick-konselor" id="mdQuick" data-konteks="biasa"></div>
           <div id="mdChat" class="chat-area" aria-live="polite"></div>
           <form id="mdFormChat" class="chat-form">
             <input id="mdInputChat" type="text" placeholder="Tulis balasan..." autocomplete="off" aria-label="Balasan ke pelapor">

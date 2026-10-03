@@ -71,11 +71,12 @@
   var navToggle = $('#navToggle');
   var progress = $('#scrollProgress');
 
-  navToggle.addEventListener('click', function () {
-    var open = navLinks.classList.toggle('open');
-    navToggle.setAttribute('aria-expanded', String(open));
-  });
-
+  if (navToggle && navLinks) {
+    navToggle.addEventListener('click', function () {
+      var open = navLinks.classList.toggle('open');
+      navToggle.setAttribute('aria-expanded', String(open));
+    });
+  }
   /* ---------- navbar pill ciut saat scroll, klik logo → atas + pill penuh ---------- */
   var nav = document.querySelector('.navbar');
   var pill = document.querySelector('.nav-pill');
@@ -167,14 +168,17 @@
     }, { rootMargin: '-30% 0px -60% 0px', threshold: 0.01 });
     document.querySelectorAll('main section[id]').forEach(function (s) { pengamat.observe(s); });
   }
-  navLinks.addEventListener('click', function (e) {
-    if (e.target.tagName === 'A') {
-      navLinks.classList.remove('open');
-      navToggle.setAttribute('aria-expanded', 'false');
-    }
-  });
+  if (navLinks) {
+    navLinks.addEventListener('click', function (e) {
+      if (e.target.tagName === 'A') {
+        navLinks.classList.remove('open');
+        if (navToggle) navToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
 
   function onScroll() {
+    if (!progress) return;
     var y = window.pageYOffset;
     var h = document.documentElement.scrollHeight - window.innerHeight;
     progress.style.width = (h > 0 ? Math.min(100, y / h * 100) : 0) + '%';
@@ -185,7 +189,7 @@
   // Nav link aktif mengikuti section terlihat
   var sections = $$('main section[id]');
   var linkMap = {};
-  navLinks.querySelectorAll('a').forEach(function (a) { linkMap[a.getAttribute('href')] = a; });
+  if (navLinks) { navLinks.querySelectorAll('a').forEach(function (a) { linkMap[a.getAttribute('href')] = a; }); }
   if ('IntersectionObserver' in window) {
     var navIO = new IntersectionObserver(function (entries) {
       entries.forEach(function (en) {
@@ -198,7 +202,6 @@
     }, { rootMargin: '-45% 0px -50% 0px' });
     sections.forEach(function (s) { navIO.observe(s); });
   }
-
   /* ===================== REVEAL ON SCROLL ===================== */
   var reveals = $$('.reveal');
   if ('IntersectionObserver' in window && !reduceMotion) {
@@ -211,7 +214,6 @@
   } else {
     reveals.forEach(function (el) { el.classList.add('in'); });
   }
-
   /* ===================== CUSTOM SELECT ===================== */
   $$('.neo-select').forEach(function (ns) {
     var trigger = ns.querySelector('.neo-select-trigger');
@@ -280,8 +282,8 @@
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
       $$('.neo-select.open').forEach(function (ns) { ns.classList.remove('open'); ns.querySelector('.neo-select-trigger').setAttribute('aria-expanded', 'false'); });
-      navLinks.classList.remove('open');
-      navToggle.setAttribute('aria-expanded', 'false');
+      if (navLinks) { navLinks.classList.remove('open'); }
+      if (navToggle) { navToggle.setAttribute('aria-expanded', 'false'); }
     }
   });
 
@@ -315,7 +317,6 @@
       sync();
     });
   });
-
   /* ===================== CHIP MULTI-SELECT ===================== */
   var chipStore = nsData['narkoba'] = { value: [] };
   $$('#chipNarkoba .chip').forEach(function (c) {
@@ -343,12 +344,14 @@
   var cerita = $('#inputCerita');
   var countCerita = $('#countCerita');
   var MIN_CERITA = 20;
+  if (cerita && countCerita) {
   cerita.addEventListener('input', function () {
     var n = cerita.value.trim().length;
     countCerita.textContent = n + ' karakter' + (n < MIN_CERITA ? ' (minimal ' + MIN_CERITA + ')' : '');
     countCerita.classList.toggle('warn', n > 0 && n < MIN_CERITA);
     cerita.closest('.field').classList.remove('invalid');
   });
+  }
 
   /* ===================== UTIL VALIDASI ===================== */
   function shake(el) {
@@ -377,12 +380,12 @@
       fallback();
     }
   }
-
   /* ===================== FORM PENGADUAN ===================== */
   var formPengaduan = $('#formPengaduan');
   var bodyPengaduan = $('#bodyPengaduan');
   var hasilPengaduan = $('#hasilPengaduan');
 
+  if (formPengaduan) {
   formPengaduan.addEventListener('submit', async function (e) {
     e.preventDefault();
 
@@ -478,6 +481,7 @@
       tombol.textContent = 'Kirim Laporan';
     }
   });
+  } /* /if (formPengaduan) */
 
   /* ===================== CEK STATUS ===================== */
   var formStatus = $('#formStatus');
@@ -499,11 +503,14 @@
     void statusResult.offsetWidth;
     statusResult.classList.add('show');
     try {
-      var res = await fetch('/api/pengaduan/status/' + encodeURIComponent(kode));
+      var res = await fetch('/api/pengaduan/' + encodeURIComponent(kode));
       var data = await res.json();
       if (res.ok) {
         statusBadge.textContent = data.status;
-        statusText.textContent = data.deskripsi;
+        statusText.textContent = 'Tiket ' + data.no_tiket + ' untuk ' + data.untuk +
+          ' (' + data.kategori + ') — status: ' + data.status + '. ' +
+          (data.konselor ? 'Ditangani oleh ' + data.konselor + '. ' : '') +
+          'Identitas Anda tetap anonim.';
       } else {
         statusBadge.textContent = 'Tidak ditemukan';
         statusText.textContent = 'Nomor tiket "' + kode + '" tidak ada di sistem kami. Periksa kembali penulisannya, atau buat laporan baru jika tiket hilang.';
@@ -515,10 +522,11 @@
   });
 
   /* ===================== FORM REHAB ===================== */
+  // Form daftar minat program (hanya ada di /program).
   var formRehab = $('#formRehab');
   var bodyRehab = $('#bodyRehab');
   var hasilRehab = $('#hasilRehab');
-
+  if (formRehab) {
   formRehab.addEventListener('submit', async function (e) {
     e.preventDefault();
     var program = nsData['program'].value;
@@ -565,8 +573,11 @@
 
     $('#hasilRehabKode').textContent = data.kode_lacak;
     $('#hasilRehabKode').hidden = false;
-    $('#hasilRehabCek').href = '#cek-minat';
-    $('#hasilRehabCek').hidden = false;
+    var cekLink = $('#hasilRehabCek');
+    if (cekLink) {
+      cekLink.href = '#program-lacak';
+      cekLink.hidden = false;
+    }
 
     bodyRehab.hidden = true;
     hasilRehab.hidden = false;
@@ -575,6 +586,7 @@
     tombol.disabled = false;
     tombol.textContent = 'Kirim Pendaftaran';
   });
+  } /* /if (formRehab) */
 
   /* ===================== CEK MINAT PROGRAM (PM-...) ===================== */
   var formCekMinat = $('#formCekMinat');
@@ -722,6 +734,9 @@
     fabChat.setAttribute('aria-expanded', 'false');
     setTimeout(function () { if (!chatModal.classList.contains('aktif')) chatModal.hidden = true; }, 260);
   }
+  // Diekspos supaya js/chat-hide.js bisa membuka/menutup modal konsisten.
+  window.__bukaChatModal = bukaModal;
+  window.__tutupChatModal = tutupModal;
   fabChat.addEventListener('click', function () {
     if (chatModal.classList.contains('aktif')) tutupModal(); else bukaModal();
   });

@@ -196,6 +196,8 @@ async function bukaDetail(tiket) {
       '<div><dt>Darurat</dt><dd>' + (d.darurat ? 'Ya' : 'Tidak') + '</dd></div>' +
       '<div><dt>Kontak pelapor</dt><dd>' + esc(d.kontak || '—') + '</dd></div>';
     $('#mdCerita').textContent = d.cerita || '(kosong)';
+    // Balasan cepat sesuai tingkat urgensi: tiket darurat pakai konteks darurat.
+    isiQuickChat(d.darurat ? 'darurat' : 'biasa');
     // sinkron neo-select status modal ke nilai dari server
     var statusNeo = $('#mdStatusNeo');
     if (statusNeo) {
@@ -251,6 +253,8 @@ async function bukaDetailMinat(kode) {
   $('#mdInfo').innerHTML = '';
   $('#mdCerita').textContent = 'Memuat...';
   $('#mdChat').innerHTML = '';
+  // Balasan cepat khusus konteks pendaftar program.
+  isiQuickChat('minat');
   $('#modalDetail').hidden = false;
   $('#mdSimpan').dataset.mode = 'minat';
 
@@ -607,6 +611,64 @@ async function kirimChat(e) {
     bubbleChat(teks, 'out');
   } catch (e2) { bubbleChat('Pesan gagal terkirim.', 'in'); }
 }
+
+/* ---------- BALASAN CEPAT KONSELOR ---------- */
+// Daftar balasan siap pakai per konteks tiket.
+var QUICK_TEKS = {
+  darurat: [
+    'Kamu sedang dalam kondisi yang berat. Kalau nyawa terancam sekarang, telepon 119 (medis) atau 110 (polisi) — saya tetap di sini menemani.',
+    'Sementara ini, jauhi situasi yang membahayakan diri kamu. Kita cari langkah paling aman bersama-sama, perlahan-lahan.',
+    'Kamu sudah berusaha sangat kuat sampai bisa cerita ke sini. Minta bantuan itu bukan kalah — itu langkah berani.',
+    'Saya tetap di sini menemani kamu. Ceritakan apa yang membuat kamu merasa tidak aman, sebentar saja.'
+  ],
+  minat: [
+    'Terima kasih sudah mendaftar minat program. Saya akan bantu mengarahkan kamu ke program yang paling sesuai.',
+    'Ada beberapa pilihan: rawat inap, rawat jalan, atau aftercare. Kita bahas perlahan-lahan, tidak ada yang memaksa.',
+    'Saya di sini mendengarkan. Ceritakan kondisi kamu sekarang, dan kita lihat program mana yang paling pas.',
+    'Kamu sudah berusaha kuat. Mendaftar ke program ini langkah berani, dan kamu tidak akan melaluinya sendirian.'
+  ],
+  biasa: [
+    'Terima kasih sudah cerita. Hal yang kamu rasakan itu sah, dan kamu tidak sendirian.',
+    'Saya di sini mendengarkan. Tidak ada yang akan menilai atau memaksa.',
+    'Kamu sudah berusaha kuat. Minta bantuan itu bukan kalah, itu langkah berani.',
+    'Saya akan bantu memikirkan langkah aman berikutnya untuk kamu.'
+  ]
+};
+
+// Isi panel balasan cepat sesuai konteks tiket yang sedang dibuka.
+function isiQuickChat(mode) {
+  var panel = $('#mdQuick');
+  if (!panel) return;
+  var daftar = QUICK_TEKS[mode] || QUICK_TEKS.biasa;
+  panel.innerHTML = daftar.map(function (t) {
+    return '<button type="button" class="chip" data-q="' + esc(t) + '">' + esc(t.length > 52 ? t.slice(0, 52) + '…' : t) + '</button>';
+  }).join('');
+  panel.setAttribute('data-konteks', mode);
+  // Pasang pengiriman.
+  panel.querySelectorAll('.chip').forEach(function (c) {
+    c.addEventListener('click', function () {
+      if (!state.ws || state.ws.readyState !== 1) { notifLive('Buka detail laporan dulu sebelum membalas.'); return; }
+      var teks = c.getAttribute('data-q');
+      state.ws.send(JSON.stringify({ type: 'pesan', tiket: state.tiketAktif, isi: teks }));
+      bubbleChat(teks, 'out');
+      var input = $('#mdInputChat');
+      if (input) input.focus();
+    });
+  });
+}
+
+// Tombol untuk melipat/membuka panel balasan cepat.
+(function () {
+  var toggle = $('#mdQuickToggle');
+  var panel = $('#mdQuick');
+  if (!toggle || !panel) return;
+  var terbuka = true;
+  toggle.addEventListener('click', function () {
+    terbuka = !terbuka;
+    panel.hidden = !terbuka;
+    toggle.setAttribute('aria-expanded', String(terbuka));
+  });
+})();
 
 /* ---------- panel admin ---------- */
 async function muatAdmin() {
