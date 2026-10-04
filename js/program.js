@@ -12,17 +12,45 @@
   var tabPanel = tabTombol.map(function (t) { return document.getElementById(t.getAttribute('data-tab')); });
 
   function tampilkanTab(id, tanpaScroll) {
+    // Animasi: panel lama fade-out dulu sebelum hidden, panel baru fade-in.
+    // Sebelumnya pakai hidden=true langsung — pergantiannya kaku/instan.
+    var panelLama = tabPanel.find(function (p) { return !p.hidden; });
+    var panelBaru = tabPanel.find(function (p) { return p.id === id; });
+
     tabTombol.forEach(function (t, i) {
       var aktif = t.getAttribute('data-tab') === id;
       t.classList.toggle('aktif', aktif);
       t.setAttribute('aria-selected', String(aktif));
       t.tabIndex = aktif ? 0 : -1;
-      tabPanel[i].hidden = !aktif;
     });
-    // Reveal animasi untuk konten yang baru tampil.
-    tabPanel.forEach(function (p) {
-      if (!p.hidden) p.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('rs'); });
-    });
+
+    function munculkan() {
+      tabPanel.forEach(function (p, i) {
+        var aktif = p.id === id;
+        p.hidden = !aktif;
+        if (aktif) {
+          p.classList.add('tab-masuk');
+          p.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('rs'); });
+          // paksa reflow supaya transisi dari .tab-masuk ke .tab-aktif jalan
+          void p.offsetWidth;
+          p.classList.add('tab-aktif');
+        } else {
+          p.classList.remove('tab-aktif', 'tab-masuk');
+        }
+      });
+    }
+
+    if (panelLama && panelLama !== panelBaru && !reduceMotion) {
+      panelLama.classList.remove('tab-aktif');
+      panelLama.classList.add('tab-keluar');
+      setTimeout(function () {
+        panelLama.classList.remove('tab-keluar');
+        munculkan();
+      }, 170);
+    } else {
+      munculkan();
+    }
+
     if (!tanpaScroll) {
       var atas = document.getElementById('program-atas');
       if (atas && window.scrollY > atas.offsetTop + 120) {

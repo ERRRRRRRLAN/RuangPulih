@@ -1,19 +1,20 @@
 # Ruang Pulih
 
 Konseling anonim, pengaduan, dan rujukan rehabilitasi narkotika. Frontend neumorphism
-(dark/light), backend Node.js + Express + SQLite, chat real-time WebSocket.
+(dark/light), backend Node.js + Express + Supabase PostgreSQL, chat real-time WebSocket.
 
 ## Menjalankan
 
 ```bash
 cd backend
-cp .env.example .env     # lalu isi DATA_KEY_HEX (32 byte hex) dan JWT_SECRET
-node seed.js              # buat admin utama (idempoten, INSERT OR IGNORE)
-node src/server.js        # jalan di http://localhost:3000
+cp .env.example .env     # lalu isi DATA_KEY_HEX (32 byte hex), JWT_SECRET, dan PG_* (Supabase)
+node seed.js             # buat admin utama (idempoten, INSERT OR IGNORE)
+node src/server.js       # jalan di http://localhost:3000
 ```
 
-Database SQLite (`ruangpulih.db`) dibuat otomatis di `backend/`. Semua file `.db*`
-diabaikan git.
+Database: Supabase PostgreSQL via connection pooler IPv4
+(`aws-0-ap-southeast-1.pooler.supabase.com:6543`, transaction mode).
+Frontend statis dilayani oleh server yang sama (satu proses, satu port).
 
 ## Test
 
@@ -39,16 +40,26 @@ shared dan merobek data antar file. `run-tests.js` menjalankannya berurutan.
 
 ## Deploy produksi
 
-1. Isi `.env` produksi: `DATA_KEY_HEX` dan `JWT_SECRET` baru (jangan pakai nilai dev).
-2. Cookie `session` otomatis `secure` saat `NODE_ENV=production`.
-3. WebSocket butuh reverse proxy yang support `Upgrade` (nginx: `proxy_set_header Upgrade $http_connection;`).
-4. Kompilasi ulang `better-sqlite3` bila pindah arsitektur: `npm rebuild better-sqlite3`.
+Backend + frontend statis + WebSocket dalam satu proses — cocok untuk Railway,
+Render, Fly.io, atau VPS Node. Dockerfile, `railway.json`, dan `render.yaml`
+sudah disediakan.
+
+1. Push repo ini ke GitHub/GitLab (private), atau connect via CLI.
+2. Buat service di Railway/Render, connect repo, set env vars:
+   - `DATA_KEY_HEX` (64 hex chars / 32 byte AES-256) — **wajib generate baru**
+   - `JWT_SECRET` — **wajib generate baru**
+   - `NODE_ENV=production`
+   - `PGHOST`, `PGPORT` (6543), `PGUSER`, `PGPASSWORD`, `PGDATABASE` (Supabase pooler)
+3. Cookie `session` otomatis `secure` saat `NODE_ENV=production`.
+4. Jangan pakai nilai dev di `.env` produksi.
+5. Supabase pooler: pastikan IP host hosting di-whitelist (Supabase default allow all).
 
 ## Risiko & tradeoffs
 
-1. **better-sqlite3 build native** — butuh toolchain C++ saat `npm install`.
-   Fallback: `node:sqlite` bawaan Node 24 (API mirip).
-2. **WebSocket di production** — butuh reverse proxy yang support `Upgrade`.
+1. **better-sqlite3 build native** — sudah tidak dipakai (migrated ke Supabase
+   PostgreSQL). Dependency masih ada di package.json sebagai fallback dev.
+2. **WebSocket di production** — Railway/Render native support WS, tapi kalau
+   pakai VPS sendiri butuh reverse proxy yang support `Upgrade`.
 3. **`.env` terlupa saat deploy** — server crash di startup (fail-loud, disengaja).
 4. **Rate limit in-memory** — reset tiap restart, tidak shared antar instance.
    Cukup untuk skala 1 server.
@@ -69,13 +80,17 @@ shared dan merobek data antar file. `run-tests.js` menjalankannya berurutan.
 backend/
   src/
     server.js              Express + static + WS + middleware
+    dbpg.js                pg Pool wrapper (Supabase, async, prepare/run/get/all)
     ws.js                  WebSocket chat 2 peran (anonim ?tiket=, konselor cookie)
     security.js            AES-256-GCM, bcrypt, JWT
-    db.js                  5 tabel: konselor, pengaduan, pesan, audit_log, layanan
-    routes/                auth, pengaduan, dashboard, layanan
+    seedLayanan.js         seed data layanan hotline
+    routes/                auth, pengaduan, dashboard, layanan, rujukan
     middleware/            rateLimit, securityHeaders
-  tests/                   7 file, 33 test
+  .env                     (di-gitignore) DATA_KEY_HEX, JWT_SECRET, PG_*
 konselor/                  login.html + dashboard.html
-css/ style.css + dashboard.css
-js/  script.js, konselor-login.js, konselor-dashboard.js
+css/ style.css + dashboard.css + login.css
+js/  script.js, program.js, chat-ui.js, chat-hide.js,
+     konselor-login.js, konselor-dashboard.js
+assets/ logo, favicon, apple-touch-icon
+Dockerfile, railway.json, render.yaml   konfigurasi deploy
 ```

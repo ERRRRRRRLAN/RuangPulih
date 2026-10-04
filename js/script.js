@@ -38,9 +38,6 @@
   document.addEventListener('pointerdown', function (e) {
     var btn = e.target.closest('.btn, .btn-icon, .btn-send, .neo-step-btn');
     if (!btn || reduceMotion) return;
-    var r = btn.getBoundingClientRect();
-    btn.style.setProperty('--rx', ((e.clientX - r.left) / r.width * 100) + '%');
-    btn.style.setProperty('--ry', ((e.clientY - r.top) / r.height * 100) + '%');
     btn.classList.remove('rippling');
     void btn.offsetWidth;
     btn.classList.add('rippling');
@@ -52,8 +49,21 @@
   var themeToggle = $('#themeToggle');
   var THEME_KEY = 'ruang-pulih-theme';
 
+  var LOGO_LIGHT = '/assets/RuangPulih.jpg';
+  var LOGO_DARK  = '/assets/RuangPulih2.jpg';
+
+  function syncLogo(t) {
+    document.querySelectorAll('img.brand-mark').forEach(function (img) {
+      img.src = t === 'dark' ? LOGO_DARK : LOGO_LIGHT;
+    });
+    document.querySelectorAll('link[rel~="icon"]').forEach(function (link) {
+      link.href = t === 'dark' ? LOGO_DARK : '/assets/favicon.ico';
+    });
+  }
+
   function applyTheme(t) {
     root.setAttribute('data-theme', t);
+    syncLogo(t);
     try { localStorage.setItem(THEME_KEY, t); } catch (err) { /* penyimpanan diblokir */ }
   }
   (function initTheme() {
@@ -69,10 +79,47 @@
   var navbar = $('#navbar');
   var navLinks = $('#navLinks');
   var navToggle = $('#navToggle');
-  var progress = $('#scrollProgress');
 
   if (navToggle && navLinks) {
-    navToggle.addEventListener('click', function () {
+    // Pindahkan menu ke <body>: .nav-pill punya transform (animasi ciut)
+    // + overflow:hidden — itu menciptakan stacking context sendiri, sehingga
+    // menu (position:fixed, z-index berapa pun) tidak bisa tampil di atas
+    // hero. Di body, stacking context-nya root — z-index 9999 menang.
+    var mediaMobile = window.matchMedia('(max-width: 980px)');
+
+    function pindahNavLinks(keBody) {
+      if (keBody && navLinks.parentElement !== document.body) {
+        // taruh setelah navbar (di body), agar urutan DOM tetap rapi
+        if (navbar && navbar.nextElementSibling) {
+          document.body.insertBefore(navLinks, navbar.nextElementSibling);
+        } else {
+          document.body.appendChild(navLinks);
+        }
+      } else if (!keBody && navLinks.parentElement === document.body) {
+        // kembalikan ke pill saat kembali ke desktop
+        var pill = document.querySelector('.nav-pill');
+        if (pill) pill.insertBefore(navLinks, pill.querySelector('.nav-actions'));
+      }
+    }
+
+    pindahNavLinks(mediaMobile.matches);
+
+    // Harus reactive: jika tidak, resize desktop↔mobile meninggalkan
+    // navLinks di tempat yang salah (menu ter-clip / link hilang).
+    if (mediaMobile.addEventListener) {
+      mediaMobile.addEventListener('change', function (ev) {
+        pindahNavLinks(ev.matches);
+        if (!ev.matches) {
+          navLinks.classList.remove('open');
+          navToggle.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+
+    navToggle.addEventListener('click', function (e) {
+      // stopPropagation supaya document-click-handler di bawah tidak
+      // langsung menutup menu yang baru saja dibuka.
+      e.stopPropagation();
       var open = navLinks.classList.toggle('open');
       navToggle.setAttribute('aria-expanded', String(open));
     });
@@ -177,15 +224,6 @@
     });
   }
 
-  function onScroll() {
-    if (!progress) return;
-    var y = window.pageYOffset;
-    var h = document.documentElement.scrollHeight - window.innerHeight;
-    progress.style.width = (h > 0 ? Math.min(100, y / h * 100) : 0) + '%';
-  }
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll();
-
   // Nav link aktif mengikuti section terlihat
   var sections = $$('main section[id]');
   var linkMap = {};
@@ -276,8 +314,10 @@
   });
 
   // Klik di luar menutup select & menu mobile
-  document.addEventListener('click', function () {
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('.nav-toggle, .nav-links')) return;
     $$('.neo-select.open').forEach(function (ns) { ns.classList.remove('open'); ns.querySelector('.neo-select-trigger').setAttribute('aria-expanded', 'false'); });
+    if (navLinks && !e.target.closest('.nav-toggle')) navLinks.classList.remove('open');
   });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
@@ -475,6 +515,20 @@
       $('#salinTiket').onclick = function () {
         copyText(tiket + ' | ID: ' + idPelapor, 'Tiket disalin ke clipboard');
       };
+
+      // ALUR: langsung hubungkan pelapor ke konselor. Laporan bukan sekadar
+      // "tercatat" — pelapor butuh bantuan sekarang, jadi buka modal chat
+      // dengan tiket yang baru dibuat (tanpa harus ketik ulang).
+      setTimeout(function () {
+        if (typeof window.__bukaChatModal === 'function') {
+          var gate = document.getElementById('formTiket');
+          var inputChat = document.getElementById('inputTiketChat');
+          if (inputChat) inputChat.value = tiket;
+          window.__bukaChatModal();
+          // submit gate otomatis: validasi tiket -> tampil ruang chat
+          if (gate) gate.requestSubmit();
+        }
+      }, 500);
     } catch (err) {
       toast('Gagal mengirim: ' + err.message + '. Cek koneksi, lalu coba lagi.');
       tombol.disabled = false;
@@ -585,6 +639,19 @@
     toast('Pendaftaran minat tersimpan.');
     tombol.disabled = false;
     tombol.textContent = 'Kirim Pendaftaran';
+
+    // ALUR: konselor akan menghubungi pendaftar — jadi buka ruang chat segera
+    // dengan kode PM yang baru dibuat. Tanpa ini pendaftar harus cari tombol
+    // chat sendiri setelah dapat kode.
+    setTimeout(function () {
+      if (typeof window.__bukaChatModal === 'function') {
+        var inputChat = document.getElementById('inputTiketChat');
+        if (inputChat) inputChat.value = data.kode_lacak;
+        window.__bukaChatModal();
+        var gate = document.getElementById('formTiket');
+        if (gate) gate.requestSubmit();
+      }
+    }, 600);
   });
   } /* /if (formRehab) */
 
@@ -691,6 +758,7 @@
   var inputTiketChat = $('#inputTiketChat');
   var chatIsi = $('#chatIsi');
   var chatBody = $('#chatBody');
+  var chatSelesaiFlag = false; // true jika tiket ini sudah Selesai — input dikunci
   var inputChat = $('#inputChat');
   var formChat = $('#formChat');
   var btnSend = formChat.querySelector('.btn-send');
@@ -724,6 +792,7 @@
     chatModal.hidden = false;
     requestAnimationFrame(function () { chatModal.classList.add('aktif'); });
     fabChat.classList.add('terbuka');
+    document.body.classList.add('chat-terbuka');
     fabChat.setAttribute('aria-expanded', 'true');
     if (chatIsi.hidden) setTimeout(function () { inputTiketChat.focus(); }, 260);
     else setTimeout(function () { inputChat.focus(); }, 260);
@@ -731,6 +800,7 @@
   function tutupModal() {
     chatModal.classList.remove('aktif');
     fabChat.classList.remove('terbuka');
+    document.body.classList.remove('chat-terbuka');
     fabChat.setAttribute('aria-expanded', 'false');
     setTimeout(function () { if (!chatModal.classList.contains('aktif')) chatModal.hidden = true; }, 260);
   }
@@ -756,6 +826,9 @@
   // Langkah 1: validasi tiket → langkah 2.
   // Kode PN-... = pengaduan, kode PM-... = pendaftaran minat program. Keduanya
   // berhak chat anonim — inilah jembatan pelapor ↔ konselor tanpa identitas.
+  var quickPanel = $('#quickReplies');
+  var quickToggle = $('#quickRepliesToggle');
+
   formTiket.addEventListener('submit', async function (e) {
     e.preventDefault();
     var kode = inputTiketChat.value.trim().toUpperCase();
@@ -784,6 +857,32 @@
       formTiket.hidden = true;
       chatIsi.hidden = false;
       chatBody.innerHTML = '';
+
+      // Jika laporan/pendaftaran SUDAH SELESAI, jangan biarkan pelapor mengetik
+      // pesan baru ke ruang kosong — beri tahu sesinya sudah ditutup.
+      var selesai = String(data.status || '').toLowerCase() === 'selesai';
+      chatSelesaiFlag = selesai;
+      if (selesai) {
+        sesiLabel.textContent = 'Tiket ' + kode + ' · sesi selesai';
+        inputChat.disabled = true;
+        btnSend.disabled = true;
+        inputChat.placeholder = 'Sesi ini sudah selesai.';
+        // Sembunyikan balasan cepat: tidak ada gunanya menawarkan
+        // pembuka percakapan di sesi yang sudah ditutup konselor.
+        quickPanel.classList.add('dilipat');
+        quickPanel.style.display = 'none';
+        var tutup = document.createElement('div');
+        tutup.className = 'chat-selesai';
+        tutup.innerHTML = '<strong>Sesi selesai</strong><span>Pelayanan untuk tiket ' + kode +
+          ' sudah ditandai selesai oleh konselor. Jika kamu butuh bantuan lagi, silakan buat laporan baru.</span>';
+        chatBody.appendChild(tutup);
+      } else {
+        inputChat.disabled = false;
+        btnSend.disabled = false;
+        inputChat.placeholder = 'Ketik pesan untuk konselor…';
+        quickPanel.style.display = '';
+      }
+
       socketSiap();
       setTimeout(function () { inputChat.focus(); }, 100);
     } catch (err) {
@@ -834,6 +933,14 @@
         else if (m.type === 'history' && Array.isArray(m.pesan)) {
           chatBody.innerHTML = ''; // bersihkan dulu — history bisa terkirim ulang saat reconnect
           m.pesan.forEach(function (p) { bubble(p.isi, p.pengirim === 'user' ? 'out' : 'in'); });
+          // Pasang kembali pemberitahuan sesi selesai (dihapus innerHTML di atas)
+          // — pelapor tetap harus tahu sesinya sudah ditutup.
+          if (chatSelesaiFlag) {
+            var tutup = document.createElement('div');
+            tutup.className = 'chat-selesai';
+            tutup.innerHTML = '<strong>Sesi selesai</strong><span>Jika kamu butuh bantuan lagi, silakan buat laporan baru.</span>';
+            chatBody.appendChild(tutup);
+          }
         }
         else if (m.error) bubble('Pesan gagal terkirim: ' + m.error, 'in');
       } catch (e) { /* abaikan format aneh */ }
@@ -877,6 +984,23 @@
   $$('#quickReplies .chip').forEach(function (c) {
     c.addEventListener('click', function () { kirimPesan(c.getAttribute('data-q')); });
   });
+
+  // Lipat/urai panel balasan cepat (pelapor mobile sering merasa terganggu).
+  // Pilihan tersimpan di localStorage: sekali dilipat, tetap dilipat.
+  if (quickPanel && quickToggle) {
+    var KEY_QUICK = 'rp-quick-dilipat';
+    var dilipat = null;
+    try { dilipat = localStorage.getItem(KEY_QUICK); } catch (e) { dilipat = null; }
+    function setLipat(on) {
+      quickPanel.classList.toggle('dilipat', on);
+      quickToggle.setAttribute('aria-expanded', String(!on));
+      try { on ? localStorage.setItem(KEY_QUICK, 'ya') : localStorage.removeItem(KEY_QUICK); } catch (e) { /* mode privat */ }
+    }
+    if (dilipat === 'ya') setLipat(true);
+    quickToggle.addEventListener('click', function () {
+      setLipat(!quickPanel.classList.contains('dilipat'));
+    });
+  }
 
   // Saat modal dibuka, reset badge & tandai pesan dibaca.
   var observerModal = new MutationObserver(function () {

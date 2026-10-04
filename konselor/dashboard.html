@@ -2,9 +2,14 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
+  <link rel="icon" type="image/x-icon" href="/assets/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dashboard Konselor — Ruang Pulih</title>
-  <link rel="icon" href="/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/dashboard.css">
 </head>
@@ -126,7 +131,9 @@
 
     <!-- TAB ADMIN -->
     <section id="panelAdmin" class="dash-panel" hidden>
-      <h2>Kelola Akun Konselor</h2>
+      <div class="panel-head">
+        <h2>Kelola Akun Konselor</h2>
+      </div>
       <form id="formAkun" class="form-akun">
         <label class="field-akun">Username<input id="akunUsername" required></label>
         <label class="field-akun">Nama<input id="akunNama" required></label>
@@ -136,7 +143,7 @@
           <div class="neo-select" id="akunPeranNeo" data-key="akunPeran" data-placeholder="Pilih peran">
             <button type="button" class="neo-select-trigger" aria-haspopup="listbox" aria-expanded="false">
               <span class="neo-select-value">Konselor</span>
-              <svg class="neo-select-chevron" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="6 9l6 6 6-6"/></svg>
+              <svg class="neo-select-chevron" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
             </button>
             <div class="neo-select-panel" role="listbox">
               <button type="button" class="neo-select-option" data-value="konselor">Konselor</button>
@@ -147,14 +154,16 @@
         </div>
         <button type="submit" class="btn-kecil">Tambah</button>
       </form>
-      <div class="table-wrap">
+      <div class="table-wrap admin-table">
         <table class="dash-table">
           <thead><tr><th>Username</th><th>Nama</th><th>Peran</th><th>Aktif</th><th></th></tr></thead>
           <tbody id="bodyAkun"></tbody>
         </table>
       </div>
 
-      <h2 class="audit-title">Audit Log</h2>
+      <div class="panel-head panel-head-audit">
+        <h2 class="audit-title">Audit Log</h2>
+      </div>
       <div class="table-wrap">
         <table class="dash-table">
           <thead><tr><th>Waktu</th><th>Aktor</th><th>Aksi</th><th>Detail</th></tr></thead>
@@ -271,8 +280,20 @@
         <button type="button" id="msrTutup" class="dash-ghost" aria-label="Tutup">Tutup</button>
       </header>
       <form id="formStatusRujuk" class="dash-form">
-        <label for="msrStatus" class="label-mini">Status</label>
-        <select id="msrStatus" class="dash-input" required>
+        <span class="label-mini">Status</span>
+        <div class="neo-select" id="msrStatusNeo" data-key="msrStatus" data-placeholder="Pilih status">
+          <button type="button" class="neo-select-trigger" aria-haspopup="listbox" aria-expanded="false">
+            <span class="neo-select-value">Diproses</span>
+            <svg class="neo-select-chevron" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="neo-select-panel" role="listbox">
+            <button type="button" class="neo-select-option" data-value="Dikirim">Dikirim</button>
+            <button type="button" class="neo-select-option" data-value="Diterima">Diterima</button>
+            <button type="button" class="neo-select-option" data-value="Diproses">Diproses</button>
+            <button type="button" class="neo-select-option" data-value="Selesai">Selesai</button>
+          </div>
+        </div>
+        <select id="msrStatus" hidden aria-hidden="true" required>
           <option value="Dikirim">Dikirim</option>
           <option value="Diterima">Diterima</option>
           <option value="Diproses" selected>Diproses</option>

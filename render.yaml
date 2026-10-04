@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: ruang-pulih
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/layanan
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      # Wajib diisi di dashboard Render (lihat backend/.env lokal):
+      # - DATA_KEY_HEX  (64 hex chars / 32 byte AES-256)
+      # - JWT_SECRET
+      # - PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE  (Supabase pooler)

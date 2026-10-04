@@ -68,7 +68,7 @@ function pasang(server) {
     // Kirim history pesan tiket ini baik ke pelapor MAUPUN ke konselor.
     // Konselor terhubung dengan ?tiket=X (cookie JWT autentikasi mereka), jadi
     // gunakan tiket dari query — bukan sesi.tiket yang hanya diisi untuk pelapor.
-    await kirimHistory(ws, tiket);
+    kirimHistory(ws, tiket);
 
     ws.on('message', async (data) => {
       let m;

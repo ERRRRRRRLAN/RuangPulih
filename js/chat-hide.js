@@ -1,12 +1,19 @@
 /* ===================== QUICK CHAT: sembunyi/tampilkan ===================== */
-// Pelapor (terutama mobile) bisa sembunyikan FAB chat bila mengganggu.
-// Pilihan disimpan di localStorage; FAB & modal ikut disembunyikan total.
+// FAB punya dua aksi (satu tombol, hemat ruang mobile):
+//   klik singkat  -> toggle modal chat
+//   tahan 600ms    -> sembunyikan FAB total (mode "jangan ganggu")
+// Pilihan hide disimpan di localStorage; ada saklar muncul-kembali.
 (function () {
+  'use strict';
   var KEY = 'rp-chat-disembunyikan';
   var SEMBUNYI = 'ya';
   var fab = document.getElementById('fabChat');
   var modal = document.getElementById('chatModal');
   if (!fab || !modal) return;
+
+  var LAMA_TEKAN = 600; // ms
+  var timerTekan = null;
+  var sudahTekan = false;
 
   function sembunyikan() {
     try { localStorage.setItem(KEY, SEMBUNYI); } catch (e) { /* mode privat */ }
@@ -22,33 +29,7 @@
     return s === SEMBUNYI;
   }
 
-  // Tombol "Sembunyikan chat" di header modal.
-  var header = modal.querySelector('.chat-header');
-  if (header) {
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn-icon chat-hide-btn';
-    btn.id = 'btnSembunyiChat';
-    btn.setAttribute('aria-label', 'Sembunyikan chat');
-    btn.title = 'Sembunyikan chat (bisa dibuka lagi dari menu)';
-    btn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 5.1A9 9 0 0121 11.5"/><path d="M21 11.5a9 9 0 01-1.6 5.2"/><path d="M6.3 6.4A9 9 0 003 11.5a9 9 0 0013.4 6.1"/><path d="M12 16.4v.01"/></svg>';
-    // Sisipkan sebelum tombol tutup (paling kanan tetep tombol tutup).
-    var tutup = document.getElementById('tutupChat');
-    header.insertBefore(btn, tutup);
-    btn.addEventListener('click', function () {
-      sembunyikan();
-      // Tutup modal dulu supaya tidak nyangkut terbuka di layar.
-      if (typeof window.__tutupChatModal === 'function') window.__tutupChatModal();
-      var toast = document.getElementById('toastChatHide');
-      if (toast) {
-        toast.classList.add('show');
-        clearTimeout(toast.__t);
-        toast.__t = setTimeout(function () { toast.classList.remove('show'); }, 5000);
-      }
-    });
-  }
-
-  // Saklar kecil untuk memunculkan kembali FAB (muncul saat chat disembunyikan).
+  // Sakelar kecil untuk memunculkan kembali FAB (hanya tampil saat disembunyikan).
   var pulihkan = document.createElement('button');
   pulihkan.type = 'button';
   pulihkan.className = 'chat-unhide';
@@ -67,6 +48,40 @@
   // Inisialisasi awal.
   if (awalSembunyi()) document.body.classList.add('chat-disembunyikan');
 
+  // --- long-press FAB = sembunyikan total ---
+  // Pakai pointer events agar jalan di mouse & touch. Klik singkat tetap
+  // dikelola script.js (toggle modal) — di sini hanya tangkap tekan lama.
+  function mulaiTekan(e) {
+    sudahTekan = false;
+    timerTekan = setTimeout(function () {
+      sudahTekan = true;
+      fab.classList.add('ditekan');
+    }, LAMA_TEKAN);
+  }
+  function selesaiTekan(e) {
+    clearTimeout(timerTekan);
+    fab.classList.remove('ditekan');
+    if (sudahTekan) {
+      sudahTekan = false;
+      sembunyikan();
+      if (typeof window.__tutupChatModal === 'function') window.__tutupChatModal();
+      var toast = document.getElementById('toastChatHide');
+      if (toast) {
+        toast.classList.add('show');
+        clearTimeout(toast.__t);
+        toast.__t = setTimeout(function () { toast.classList.remove('show'); }, 5000);
+      }
+    }
+  }
+  fab.addEventListener('pointerdown', mulaiTekan);
+  fab.addEventListener('pointerup', selesaiTekan);
+  fab.addEventListener('pointerleave', function () {
+    clearTimeout(timerTekan);
+    fab.classList.remove('ditekan');
+  });
+  // Batalkan long-press kalau modal terbuka di tengah tekan (FAB jadi tombol X).
+  fab.addEventListener('click', function () { clearTimeout(timerTekan); });
+
   // Tombol "Munculkan" di toast notifikasi.
   var toastShow = document.getElementById('toastChatShow');
   if (toastShow) {
@@ -76,4 +91,23 @@
       if (toast) toast.classList.remove('show');
     });
   }
+
+  // Tombol "Sembunyikan chat" di header modal (ikon mata-slash).
+  var btnSembunyiHeader = document.getElementById('btnSembunyiChatHeader');
+  if (btnSembunyiHeader) {
+    btnSembunyiHeader.addEventListener('click', function () {
+      sembunyikan();
+      if (typeof window.__tutupChatModal === 'function') window.__tutupChatModal();
+      var toast = document.getElementById('toastChatHide');
+      if (toast) {
+        toast.classList.add('show');
+        clearTimeout(toast.__t);
+        toast.__t = setTimeout(function () { toast.classList.remove('show'); }, 5000);
+      }
+    });
+  }
+
+  // Ekspos supaya bagian lain bisa konsisten.
+  window.__chatDisembunyikan = sembunyikan;
+  window.__chatTampilkan = tampilkan;
 })();

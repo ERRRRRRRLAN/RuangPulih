@@ -144,14 +144,19 @@ router.patch('/minat/:kode', butuhKonselor, async (req, res) => {
   const status = req.body.status ? String(req.body.status).trim() : null;
   const ambil = req.body.ambil === true || req.body.ambil === '1';
   const lepas = req.body.lepas === true || req.body.lepas === '1';
+  // /program <nama>: konselor bisa langsung ganti program pendaftar dari chat
+  // (mis. ternyata cocoknya rawat inap, bukan rawat jalan).
+  const program = req.body.program ? String(req.body.program).trim() : null;
 
   const statusValid = ['Baru', 'Dihubungi', 'Terdaftar', 'Selesai'];
+  const programValid = ['Detoksifikasi', 'Rehabilitasi Rawat Inap', 'Rehabilitasi Rawat Jalan', 'Aftercare'];
   const set = [];
   const params = [];
   let n = 0;
   if (status && statusValid.includes(status)) { n += 1; set.push('status = $' + n); params.push(status); }
   if (ambil) { n += 1; set.push('ditangani_oleh = $' + n); params.push(req.konselor.id); }
   else if (lepas) { set.push('ditangani_oleh = NULL'); }
+  if (program && programValid.includes(program)) { n += 1; set.push('program = $' + n); params.push(program); }
   if (!set.length) return res.status(400).json({ error: 'tidak ada perubahan' });
 
   n += 1;
@@ -161,7 +166,7 @@ router.patch('/minat/:kode', butuhKonselor, async (req, res) => {
   params.push(kode);
   await db.prepare('UPDATE minat_program SET ' + set.join(', ') + ' WHERE kode_lacak = $' + n).run(...params);
 
-  catat(req.konselor.username, 'UPDATE_MINAT', 'kode=' + kode + ' status=' + (status || ada.status), req.ip);
+  catat(req.konselor.username, 'UPDATE_MINAT', 'kode=' + kode + ' status=' + (status || ada.status) + (program ? ' program=' + program : ''), req.ip);
   res.json({ ok: true });
 });
 

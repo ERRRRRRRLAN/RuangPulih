@@ -17,47 +17,56 @@ function badge(status) {
 /* ---------- custom dropdown (neo-select) ---------- */
 // Sinkron antara elemen .neo-select (visual) dan <select> asli (tersembunyi).
 // Sengaja tidak memakai script.js agar dashboard tetap mandiri.
-function siapkanNeoSelect() {
-  $$('.neo-select').forEach(function (ns) {
-    var trigger = ns.querySelector('.neo-select-trigger');
-    var valueEl = ns.querySelector('.neo-select-value');
-    var panel = ns.querySelector('.neo-select-panel');
-    if (!trigger || !panel) return;
-    var hidden = document.getElementById(ns.id.replace(/Neo$/, '')) || null;
+function siapkanSatuNeoSelect(ns) {
+  var trigger = ns.querySelector('.neo-select-trigger');
+  var valueEl = ns.querySelector('.neo-select-value');
+  var panel = ns.querySelector('.neo-select-panel');
+  if (!trigger || !panel) return;
+  // Hapus listener lama: bungkus dengan flag idempoten supaya aman dipanggil ulang
+  // (opsi modal status ditukar saat mode minat → perlu rebind tanpa dobel).
+  if (ns.__rebind) ns.__rebind();
+  var hidden = document.getElementById(ns.id.replace(/Neo$/, '')) || null;
 
-    function sync(value) {
-      if (hidden) hidden.value = value;
-      var chosen = null;
-      panel.querySelectorAll('.neo-select-option').forEach(function (o) {
-        var on = o.getAttribute('data-value') === String(value);
-        o.classList.toggle('sel', on);
-        if (on) chosen = o;
-      });
-      if (chosen) valueEl.textContent = chosen.textContent.trim();
-    }
-    function setOpen(open) {
-      ns.classList.toggle('open', open);
-      trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
-    }
-
-    trigger.addEventListener('click', function (e) {
-      e.stopPropagation();
-      setOpen(!ns.classList.contains('open'));
-    });
+  function sync(value) {
+    if (hidden) hidden.value = value;
+    var chosen = null;
     panel.querySelectorAll('.neo-select-option').forEach(function (o) {
-      o.addEventListener('click', function (e) {
-        e.stopPropagation();
-        sync(o.getAttribute('data-value'));
-        setOpen(false);
-        if (hidden && hidden.id === 'filterStatus') muatAntrian();
-      });
+      var on = o.getAttribute('data-value') === String(value);
+      o.classList.toggle('sel', on);
+      if (on) chosen = o;
     });
-    document.addEventListener('click', function () { setOpen(false); });
+    if (chosen) valueEl.textContent = chosen.textContent.trim();
+  }
+  function setOpen(open) {
+    ns.classList.toggle('open', open);
+    trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  function onTrigger(e) { e.stopPropagation(); setOpen(!ns.classList.contains('open')); }
+  function onOption(e) {
+    e.stopPropagation();
+    sync(e.currentTarget.getAttribute('data-value'));
+    setOpen(false);
+    if (hidden && hidden.id === 'filterStatus') muatAntrian();
+  }
+  function onDoc() { setOpen(false); }
 
-    // nilai awal dari <select> asli
-    if (hidden && hidden.value) sync(hidden.value);
-    else sync('');
-  });
+  trigger.addEventListener('click', onTrigger);
+  panel.querySelectorAll('.neo-select-option').forEach(function (o) { o.addEventListener('click', onOption); });
+  document.addEventListener('click', onDoc);
+
+  ns.__rebind = function () {
+    trigger.removeEventListener('click', onTrigger);
+    panel.querySelectorAll('.neo-select-option').forEach(function (o) { o.removeEventListener('click', onOption); });
+    document.removeEventListener('click', onDoc);
+    ns.__rebind = null;
+  };
+
+  // nilai awal dari <select> asli
+  if (hidden && hidden.value) sync(hidden.value);
+  else sync('');
+}
+function siapkanNeoSelect() {
+  $$('.neo-select').forEach(siapkanSatuNeoSelect);
 }
 function waktu(ts) {
   var d = new Date(Number(ts));
@@ -110,6 +119,13 @@ async function api(path, opts) {
   $('#mdInputChat').addEventListener('input', kirimTyping);
   siapkanNeoSelect();
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { $('#modalStatusRujuk').hidden = true; tutupModalRujuk(); tutupModal(); } });
+  // Klik backdrop (area gelap di luar kotak) = tutup modal. Lebih cepat dari
+  // mencari tombol "Tutup" — apalagi di mobile.
+  [['modalDetail', tutupModal], ['modalRujuk', tutupModalRujuk], ['modalStatusRujuk', function () { $('#modalStatusRujuk').hidden = true; }]].forEach(function (p) {
+    var m = $('#' + p[0]);
+    if (!m) return;
+    m.addEventListener('click', function (e) { if (e.target === m) p[1](); });
+  });
   if (state.saya.peran === 'admin') muatAdmin();
 })();
 
@@ -267,6 +283,9 @@ async function bukaDetailMinat(kode) {
       .join('');
     var trigger = statusNeo.querySelector('.neo-select-trigger');
     if (trigger) trigger.setAttribute('aria-haspopup', 'listbox');
+    // Pasang ulang listener neo-select: node option diganti total, listener
+    // lama melekat pada node yang sudah dibuang.
+    siapkanSatuNeoSelect(statusNeo);
   }
 
   try {
@@ -296,6 +315,8 @@ async function bukaDetailMinat(kode) {
 }
 
 // Ambil alih penanganan minat (assign diri sendiri).
+// Otomatis dipanggil saat konselor mengirim pesan pertama di tiket minat
+// yang belum ditugaskan — ngobrol = menangani, tidak perlu klik tombol.
 async function ambilMinat(kode) {
   try {
     await api('/api/dashboard/minat/' + encodeURIComponent(kode), {
@@ -404,6 +425,12 @@ async function updateStatusRujukan(kode) {
   state.rujukanAktif = kode;
   $('#msrJudul').textContent = 'Update Status Rujukan ' + kode;
   $('#msrStatus').value = 'Diproses';
+  // sinkron tampilan neo-select ke nilai default
+  var neo = $('#msrStatusNeo');
+  if (neo) {
+    var pilih = neo.querySelector('[data-value="Diproses"]');
+    if (pilih) pilih.click();
+  }
   $('#modalStatusRujuk').hidden = false;
 }
 
@@ -452,6 +479,7 @@ function pulihkanOpsiStatus() {
       .join('');
     statusNeo.querySelector('.neo-select-value').textContent = 'Status';
     $('#mdStatus').value = '';
+    siapkanSatuNeoSelect(statusNeo);
   }
 }
 
@@ -604,12 +632,158 @@ async function kirimChat(e) {
   e.preventDefault();
   var input = $('#mdInputChat');
   var teks = input.value.trim();
-  if (!teks || !state.ws || state.ws.readyState !== 1) return;
+  if (!teks) return;
+
+  // SLASH COMMAND: ubah status dll lewat chat, tanpa sentuh form.
+  // /status selesai  /program Rehabilitasi Rawat Jalan  /ambil  /selesai
+  if (teks.charAt(0) === '/' && jalankanPerintah(teks)) {
+    input.value = '';
+    return;
+  }
+
+  if (!state.ws || state.ws.readyState !== 1) return;
   input.value = '';
+
+  // Mode minat: konselor sudah mengobrol → otomatis ambil penanganan jika
+  // belum ada yang ditugaskan. Tidak perlu klik "Ambil Penanganan" dulu.
+  if (state.modeMinat && state.tiketAktif && !$('#mdAmbil').hidden) {
+    ambilMinat(state.tiketAktif);
+  }
+
   try {
     state.ws.send(JSON.stringify({ type: 'pesan', tiket: state.tiketAktif, isi: teks }));
     bubbleChat(teks, 'out');
   } catch (e2) { bubbleChat('Pesan gagal terkirim.', 'in'); }
+}
+
+/* ===================== SLASH COMMAND KONSELOR ===================== */
+// Filosofi: konselor sudah mengobrol dengan pelapor — kenapa harus pindah ke
+// form cuma buat ganti status? Ketik aja di chat.
+//
+//   /status <status>   ubah status (dengan pelengkap/tab daftar status)
+//   /selesai           shortcut status Selesai
+//   /program <nama>    ubah program minat (mis. cocoknya pindah ke rawat inap)
+//   /ambil             ambil alih penanganan
+//   /bantuan           daftar perintah
+//
+// Command tidak dikirim ke pelapor — hanya dieksekusi. Umpan baliknya
+// ditampilkan sebagai gelembung sistem (bukan pesan konselor).
+function bubbleSistem(teks) {
+  var area = $('#mdChat');
+  var d = document.createElement('div');
+  d.className = 'bubble bubble-sistem';
+  d.textContent = teks;
+  area.appendChild(d);
+  area.scrollTop = area.scrollHeight;
+}
+
+// Daftar status valid per mode (untuk pelengkap & validasi).
+function daftarStatus(mode) {
+  return mode === 'minat'
+    ? ['Baru', 'Dihubungi', 'Terdaftar', 'Selesai']
+    : ['Diterima', 'Ditinjau', 'Dalam Penanganan', 'Selesai'];
+}
+
+function statusCocok(mode, nilai) {
+  var pool = daftarStatus(mode);
+  var v = String(nilai || '').trim().toLowerCase();
+  if (!v) return null;
+  var persis = pool.find(function (s) { return s.toLowerCase() === v; });
+  if (persis) return persis;
+  return pool.find(function (s) { return s.toLowerCase().indexOf(v) === 0; }) || null;
+}
+
+function jalankanPerintah(teks) {
+  var bagian = teks.slice(1).split(/\s+/).filter(Boolean);
+  if (!bagian.length) return false;
+  var cmd = bagian[0].toLowerCase();
+  var arg = bagian.slice(1).join(' ');
+  var mode = state.modeMinat ? 'minat' : 'pengaduan';
+  var tiket = state.tiketAktif;
+
+  if (cmd === 'bantuan' || cmd === 'help') {
+    bubbleSistem('PERINTAH — /status <status> · /selesai · /program <nama> · /ambil · /bantuan. Command ini tidak dikirim ke pelapor.');
+    return true;
+  }
+
+  if (cmd === 'ambil') {
+    if (mode !== 'minat') { bubbleSistem('/ambil hanya untuk pendaftaran program (PM-…).'); return true; }
+    ambilMinat(tiket);
+    return true;
+  }
+
+  // /status tanpa argumen: tampilkan daftar status (pelengkap/tab completer).
+  if (cmd === 'status' && !arg) {
+    bubbleSistem('Pilih status: ' + daftarStatus(mode).join(' · ') + '. Contoh: /status selesai');
+    return true;
+  }
+
+  if (cmd === 'status' || cmd === 'selesai') {
+    var nilai = cmd === 'selesai' ? 'Selesai' : statusCocok(mode, arg);
+    if (!nilai) {
+      bubbleSistem('Status tidak dikenal. Pilihan: ' + daftarStatus(mode).join(' · ') + '.');
+      return true;
+    }
+    ubahStatusChat(mode, tiket, nilai);
+    return true;
+  }
+
+  if (cmd === 'program') {
+    if (mode !== 'minat') { bubbleSistem('/program hanya untuk pendaftaran program (PM-…).'); return true; }
+    if (!arg) { bubbleSistem('Contoh: /program Rehabilitasi Rawat Inap'); return true; }
+    ubahProgramChat(tiket, arg);
+    return true;
+  }
+
+  bubbleSistem('Perintah tidak dikenal: /' + cmd + '. Ketik /bantuan untuk daftar.');
+  return true;
+}
+
+// Ubah status langsung dari chat. Tidak ada tombol Simpan, tidak ada form.
+async function ubahStatusChat(mode, tiket, nilai) {
+  var endpoint = mode === 'minat'
+    ? '/api/dashboard/minat/' + encodeURIComponent(tiket)
+    : '/api/pengaduan/' + encodeURIComponent(tiket) + '/status';
+  try {
+    await api(endpoint, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(mode === 'minat' ? { status: nilai, ambil: true } : { status: nilai })
+    });
+    // sinkron tampilan neo-select modal ke nilai baru
+    var neo = $('#mdStatusNeo');
+    if (neo) {
+      var pilih = neo.querySelector('[data-value="' + nilai + '"]');
+      if (pilih) pilih.click();
+    }
+    var hid = $('#mdStatus');
+    if (hid) hid.value = nilai;
+    notifLive('Status ' + tiket + ' → ' + nilai);
+    if (mode === 'minat') muatMinat(); else { muatAntrian(); muatStatistik(); }
+  } catch (e) {
+    bubbleChat('Gagal ubah status: ' + e.message, 'in');
+  }
+}
+
+// Ubah program pendaftar langsung dari chat (mis. ternyata cocok rawat inap).
+async function ubahProgramChat(tiket, program) {
+  var pilihan = ['Detoksifikasi', 'Rehabilitasi Rawat Inap', 'Rehabilitasi Rawat Jalan', 'Aftercare'];
+  var cocok = pilihan.find(function (p) { return p.toLowerCase().indexOf(program.toLowerCase()) === 0; });
+  if (!cocok) {
+    bubbleChat('Program tidak dikenal. Pilihan: ' + pilihan.join(', ') + '.', 'in');
+    return;
+  }
+  try {
+    await api('/api/dashboard/minat/' + encodeURIComponent(tiket), {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ program: cocok })
+    });
+    notifLive('Program ' + tiket + ' → ' + cocok);
+    muatMinat();
+  } catch (e) {
+    bubbleChat('Gagal ubah program: ' + e.message, 'in');
+  }
 }
 
 /* ---------- BALASAN CEPAT KONSELOR ---------- */
