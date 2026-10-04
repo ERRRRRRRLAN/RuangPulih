@@ -1,0 +1,5 @@
+# Env sensitif & dev artifacts
+backend/.env
+.git
+.gitignore
+*.md

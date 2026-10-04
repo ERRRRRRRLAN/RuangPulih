@@ -26,3 +26,5 @@ backend/venv/
 # Screenshot dev (bukan bagian repo)
 preview-*.png
 Web Konselor Anonim.pdf
+
+.vercel

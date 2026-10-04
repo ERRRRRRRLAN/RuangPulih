@@ -1,6 +1,7 @@
-// Enkripsi field sensitif (AES-256-GCM) + hashing sandi (bcrypt) + sesi (JWT).
+// Enkripsi field sensitif (AES-256-GCM) + hashing sandi (bcryptjs) + sesi (JWT).
+// bcryptjs = pure JS (kompatibel serverless Vercel); bcrypt native binary tidak bisa.
+const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const config = require('./config');
 
