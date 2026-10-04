@@ -458,7 +458,7 @@ async function simpanStatusRujukan() {
 
 function tutupModal() {
   $('#modalDetail').hidden = true;
-  if (state.ws) { try { state.ws.close(); } catch (e) { /* abaikan */ } state.ws = null; }
+  if (window.RuangPulihRT) window.RuangPulihRT.unsubscribe();
   state.tiketAktif = null;
   state.modeMinat = false;
   pulihkanOpsiStatus();
@@ -504,32 +504,26 @@ async function simpanStatus() {
   }
 }
 
-/* ---------- chat WS konselor ---------- */
+/* ---------- chat realtime konselor (Supabase) ---------- */
 // Koneksi "live" dashboard: dengarkan pengaduan baru & pesan masuk,
 // refresh antrian + statistik secara otomatis tanpa reload.
+// Dipakai: https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
 function sambungDashboardWS() {
-  var url = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws';
-  try { state.wsLive = new WebSocket(url); } catch (e) { return; }
-  state.wsLive.onmessage = function (ev) {
-    try {
-      var m = JSON.parse(ev.data);
-      if (m.type === 'hello') { state.wsLiveSid = m.sid; return; }
-      if (m.type === 'pengaduan_baru') {
-        muatStatistik();
+  if (!window.RuangPulihRT) return;
+  // Konselor subscribe SEMUA tiket (tidak difilter per-tiket)
+  window.RuangPulihRT.subscribe(null, function (ev) {
+    if (ev.tipe === 'pengaduan_baru') {
+      muatStatistik();
+      muatAntrian();
+      notifLive((ev.data && ev.data.darurat ? 'Laporan darurat baru' : 'Laporan baru') + ': ' + ev.no_tiket);
+    } else if (ev.tipe === 'pesan') {
+      // pelapor mengirim chat di tiket lain → tandai baris belum dibaca
+      if (ev.no_tiket !== state.tiketAktif) {
         muatAntrian();
-        notifLive((m.darurat ? 'Laporan darurat baru' : 'Laporan baru') + ': ' + m.tiket);
-      } else if (m.type === 'pesan_baru') {
-        // pelapor mengirim chat di tiket lain → tandai baris belum dibaca
-        if (m.tiket !== state.tiketAktif) {
-          muatAntrian();
-          notifLive('Chat baru di ' + m.tiket);
-        }
+        notifLive('Chat baru di ' + ev.no_tiket);
       }
-    } catch (e) { /* abaikan */ }
-  };
-  state.wsLive.onclose = function () {
-    setTimeout(function () { if (!state.wsLive || state.wsLive.readyState === 3) sambungDashboardWS(); }, 3000);
-  };
+    }
+  });
 }
 
 function notifLive(teks) {
@@ -545,44 +539,42 @@ function notifLive(teks) {
 }
 
 function sambungWS(tiket) {
-  var url = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws?tiket=' + encodeURIComponent(tiket);
-  // cookie HttpOnly 'session' ikut otomatis, jadi konselor terauth tanpa JS menyentuh token
-  var ws;
-  try { ws = new WebSocket(url); } catch (e) { bubbleChat('Tidak bisa terhubung ke server chat.', 'in'); return; }
-  state.ws = ws;
-  ws.onmessage = function (ev) {
-    try {
-      var m = JSON.parse(ev.data);
-      if (m.type === 'hello') { state.wsSid = m.sid; return; }
-      if (m.type === 'history' && Array.isArray(m.pesan)) {
-        // pastikan history hanya merender tiket yang sedang aktif (bisa terjadi
-        // race: modal sudah ditutup/selesai membuka tiket lain saat WS lama balas)
-        if (m.tiket !== state.tiketAktif) return;
+  if (!window.RuangPulihRT) { bubbleChat('Realtime belum siap, muat ulang halaman.', 'in'); return; }
+  // Konselor: ambil history dulu, lalu subscribe tiket ini
+  window.RuangPulihRT.ambilHistory(tiket).then(function (pesan) {
+    $('#mdChat').innerHTML = '';
+    (pesan || []).forEach(function (p) {
+      bubbleChat(p.isi, p.pengirim === 'user' ? 'in' : 'out', p.dibuat);
+    });
+  }).catch(function () { bubbleChat('Gagal memuat riwayat chat.', 'in'); });
+
+  window.RuangPulihRT.subscribe(tiket, function (ev) {
+    if (ev.tipe === 'typing') {
+      if (ev.dari === 'user') tampilkanMengetik();
+      return;
+    }
+    if (ev.tipe === 'baca') return;
+
+    // pesan baru di tiket ini → ambil hanya pesan terbaru via API
+    if (ev.tipe === 'pesan') {
+      if (ev.no_tiket !== state.tiketAktif) return;
+      window.RuangPulihRT.ambilHistory(tiket).then(function (pesan) {
+        // render ulang full history (dedup aman, idempoten)
         $('#mdChat').innerHTML = '';
-        // server kirim {pengirim:'user'|'konselor'} — kita konselor, jadi
-        // pesan user = masuk (in), pesan konselor = keluar (out)
-        m.pesan.forEach(function (p) {
+        (pesan || []).forEach(function (p) {
           bubbleChat(p.isi, p.pengirim === 'user' ? 'in' : 'out', p.dibuat);
         });
-      } else if (m.type === 'typing') {
-        if (m.dari === 'user') tampilkanMengetik();
-      } else if (m.type === 'pesan') {
-        if (m.sid && m.sid === state.wsSid) return; // pesan kita sendiri, jangan double
-        // abaikan pesan yang bukan untuk tiket yang sedang dibuka
-        if (m.tiket !== state.tiketAktif) return;
-        // abaikan jika sudah ada (history baru saja memuat pesan yang sama)
-        if (chatSudahAda($('#mdChat'), m.isi, m.dibuat)) return;
         hapusMengetik();
-        // arah pasti: kita konselor → pesan pelapor selalu 'in' (kiri),
-        // tidak peduli flag pengirim/dari dari server
-        bubbleChat(m.isi, 'in', m.dibuat);
-      } else if (m.error) {
-        bubbleChat('Pesan gagal: ' + m.error, 'in');
-      }
-    } catch (e) { /* abaikan */ }
-  };
-  ws.onerror = function () { bubbleChat('Koneksi chat terganggu.', 'in'); };
-  ws.onclose = function () { if (state.ws === ws) state.ws = null; };
+      }).catch(function () { /* coba lagi nanti */ });
+      return;
+    }
+
+    // rujukan/status berubah → info sistem di chat
+    if (ev.tipe === 'rujukan' || ev.tipe === 'status') {
+      if (ev.no_tiket !== state.tiketAktif) return;
+      bubbleChat(ev.tipe === 'rujukan' ? 'Rujukan dibuat: ' + (ev.data.tujuan || '') : 'Status diperbarui.', 'in');
+    }
+  });
 }
 
 // Cegah duplikat: pesan WS bisa tiba bersamaan/sebelum history saat reconnect
@@ -611,9 +603,9 @@ function hapusMengetik() { var t = $('#mdChat .typing'); if (t) t.remove(); }
 
 var timeoutMengetik = null;
 function kirimTyping() {
-  if (!state.ws || state.ws.readyState !== 1 || !state.tiketAktif) return;
+  if (!window.RuangPulihRT || !state.tiketAktif) return;
   clearTimeout(timeoutMengetik);
-  state.ws.send(JSON.stringify({ type: 'typing', tiket: state.tiketAktif }));
+  window.RuangPulihRT.kirimTyping(state.tiketAktif, 'konselor');
   // throttle: kirim tiap 1.2s saat terus mengetik
   timeoutMengetik = setTimeout(function () {}, 1200);
 }
@@ -641,7 +633,7 @@ async function kirimChat(e) {
     return;
   }
 
-  if (!state.ws || state.ws.readyState !== 1) return;
+  if (!state.tiketAktif) return;
   input.value = '';
 
   // Mode minat: konselor sudah mengobrol → otomatis ambil penanganan jika
@@ -651,9 +643,11 @@ async function kirimChat(e) {
   }
 
   try {
-    state.ws.send(JSON.stringify({ type: 'pesan', tiket: state.tiketAktif, isi: teks }));
+    // Kirim via API (cookie session autentikasi konselor, gak butuh token anon).
+    // Pesan kita sendiri gak di-render ulang Realtime — render lokal sudah cukup.
+    await window.RuangPulihRT.kirimPesan(state.tiketAktif, teks);
     bubbleChat(teks, 'out');
-  } catch (e2) { bubbleChat('Pesan gagal terkirim.', 'in'); }
+  } catch (e2) { bubbleChat('Pesan gagal terkirim: ' + e2.message, 'in'); }
 }
 
 /* ===================== SLASH COMMAND KONSELOR ===================== */
@@ -820,11 +814,13 @@ function isiQuickChat(mode) {
   panel.setAttribute('data-konteks', mode);
   // Pasang pengiriman.
   panel.querySelectorAll('.chip').forEach(function (c) {
-    c.addEventListener('click', function () {
-      if (!state.ws || state.ws.readyState !== 1) { notifLive('Buka detail laporan dulu sebelum membalas.'); return; }
+    c.addEventListener('click', async function () {
+      if (!state.tiketAktif) { notifLive('Buka detail laporan dulu sebelum membalas.'); return; }
       var teks = c.getAttribute('data-q');
-      state.ws.send(JSON.stringify({ type: 'pesan', tiket: state.tiketAktif, isi: teks }));
-      bubbleChat(teks, 'out');
+      try {
+        await window.RuangPulihRT.kirimPesan(state.tiketAktif, teks);
+        bubbleChat(teks, 'out');
+      } catch (e2) { notifLive('Pesan gagal terkirim.'); }
       var input = $('#mdInputChat');
       if (input) input.focus();
     });

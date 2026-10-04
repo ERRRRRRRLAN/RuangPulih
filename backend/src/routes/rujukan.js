@@ -23,7 +23,7 @@ const db = require('../db');
 const { butuhKonselor } = require('../deps');
 const { encrypt, decrypt } = require('../security');
 const { catat } = require('../audit');
-const { kirimKeTiket } = require('../ws');
+const { buatEventRujukan, buatEventStatus } = require('../realtime');
 
 const TUJUAN_VALID = ['Polisi', 'Dokter'];
 const STATUS_VALID = ['Dikirim', 'Diterima', 'Diproses', 'Selesai'];
@@ -89,14 +89,8 @@ router.post('/', butuhKonselor, async (req, res) => {
 
   catat(req.konselor.username, 'BUAT_RUJUKAN', `kode=${kode} tujuan=${tujuan} dari=${tiket}`, req.ip);
 
-  // Notifikasi real-time ke pelapor yang sedang online di tiket itu.
-  // Isi pesan tidak membongkar identitas — pelapor memang tahu tiketnya sendiri.
-  kirimKeTiket(tiket, {
-    type: 'rujukan_baru',
-    tujuan,
-    kode_rujukan: kode,
-    keterangan: PETAS_PUBLIK.Dikirim,
-  });
+  // Notifikasi real-time ke pelapor via Supabase (event metadata saja).
+  buatEventRujukan(tiket, tujuan);
 
   res.status(201).json({ ok: true, kode_rujukan: kode });
 });
@@ -198,17 +192,10 @@ router.patch('/:kode', butuhKonselor, async (req, res) => {
 
   catat(req.konselor.username, 'UPDATE_RUJUKAN', `kode=${kode} status=${status || ada.status}`, req.ip);
 
-  // Beri tahu pelapor (jika sedang online) bahwa rujukannya maju status.
+  // Beri tahu pelapor via Supabase bahwa rujukannya maju status.
   if (status && PETAS_PUBLIK[status]) {
     const sumber = await db.prepare('SELECT sumber_tiket FROM rujukan WHERE kode_rujukan = $1').get(kode);
-    if (sumber) {
-      kirimKeTiket(sumber.sumber_tiket, {
-        type: 'rujukan_status',
-        kode_rujukan: kode,
-        status,
-        keterangan: PETAS_PUBLIK[status],
-      });
-    }
+    if (sumber) buatEventStatus(sumber.sumber_tiket, status);
   }
 
   res.json({ ok: true });

@@ -765,8 +765,10 @@
   var sesiLabel = $('#sesiLabel');
   var judulChat = $('#chatModalJudul');
   var fabBadge = $('#fabBadge');
-  var socket = null;
-  var antrianChat = []; // pesan tertahan sebelum socket siap
+  var socket = null;       // dijaga untuk compat; tidak dipakai lagi
+  var antrianChat = [];    // pesan tertahan sebelum realtime siap
+  var rtSiap = false;
+  var rtSubscribed = false;
   var belumDibaca = 0;
 
   function jam() {
@@ -894,62 +896,107 @@
     }
   });
 
-  // Sambungan WebSocket: dibuka saat tiket divalidasi (bukan saat load) supaya
-  // history pesan & pesan baru hanya untuk tiket yang dimaksud.
+  // Realtime via Supabase: subscribe event chat (metadata saja), isi pesan
+  // di-fetch via API. Pesan kita sendiri tidak didorong ulang oleh server
+  // (kita tidak subscribe ke insert kita sendiri — fetch dilakukan terpisah).
   function socketSiap() {
-    if (socket && socket.readyState === 1) return true;
+    if (rtSiap) return true;
     var tiket = window.__tiketChat;
-    if (!tiket) return false;
-    try {
-      var url = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws?tiket=' + encodeURIComponent(tiket);
-      socket = new WebSocket(url);
-    } catch (e) { return false; }
-    socket.onopen = function () {
+    if (!tiket || !window.RuangPulihRT) return false;
+
+    // Ambil anon-token (validasi server-side) lalu subscribe.
+    window.RuangPulihRT.mintaAnonToken(tiket).then(function () {
+      rtSiap = true;
       sesiLabel.textContent = 'Tiket ' + tiket + ' · terhubung ke konselor';
-      while (antrianChat.length) socket.send(antrianChat.shift());
-    };
-    socket.onmessage = function (ev) {
-      try {
-        var m = JSON.parse(ev.data);
-        if (m.type === 'hello') { socket.__sid = m.sid; return; }
-        if (m.type === 'typing') {
-          if (m.dari === 'konselor') tampilkanMengetik();
+
+      // Ambil history pesan yang sudah ada sebelum subscribe realtime,
+      // supaya pelapor langsung lihat percakapan lamanya saat buka modal.
+      window.RuangPulihRT.ambilHistory(tiket).then(function (pesan) {
+        renderHistory(pesan);
+      }).catch(function () { /* coba lagi di event berikutnya */ });
+
+      window.RuangPulihRT.subscribe(tiket, function (ev) {
+        // typing indicator (broadcast ephemeral)
+        if (ev.tipe === 'typing') {
+          if (ev.dari === 'konselor') tampilkanMengetik();
           return;
         }
-        if (m.type === 'pesan') {
-          if (m.sid && m.sid === socket.__sid) return; // pesan kita sendiri
-          // hanya render jika modal sedang menampilkan tiket ini
+        if (ev.tipe === 'baca') return;
+
+        // event pesan baru di tiket ini → fetch plaintext via API
+        if (ev.tipe === 'pesan') {
           if (window.__tiketChat !== tiket) return;
-          hapusMengetik();
-          bubble(m.isi, 'in');
-          if (chatModal.classList.contains('aktif')) {
-            socket.send(JSON.stringify({ type: 'baca', tiket: tiket }));
-          } else {
-            belumDibaca++;
-            fabBadge.hidden = false;
-            fabBadge.textContent = String(belumDibaca);
-          }
+          // ambil pesan baru saja (setelah terakhir dilihat)
+          window.RuangPulihRT.ambilHistory(tiket).then(function (pesan) {
+            renderHistory(pesan);
+            if (!chatModal.classList.contains('aktif')) {
+              belumDibaca++;
+              fabBadge.hidden = false;
+              fabBadge.textContent = String(belumDibaca);
+            } else {
+              window.RuangPulihRT.kirimBaca(tiket);
+            }
+          }).catch(function () { /* coba lagi di event berikutnya */ });
+          return;
         }
-        else if (m.type === 'history' && Array.isArray(m.pesan)) {
-          chatBody.innerHTML = ''; // bersihkan dulu — history bisa terkirim ulang saat reconnect
-          m.pesan.forEach(function (p) { bubble(p.isi, p.pengirim === 'user' ? 'out' : 'in'); });
-          // Pasang kembali pemberitahuan sesi selesai (dihapus innerHTML di atas)
-          // — pelapor tetap harus tahu sesinya sudah ditutup.
-          if (chatSelesaiFlag) {
-            var tutup = document.createElement('div');
-            tutup.className = 'chat-selesai';
-            tutup.innerHTML = '<strong>Sesi selesai</strong><span>Jika kamu butuh bantuan lagi, silakan buat laporan baru.</span>';
-            chatBody.appendChild(tutup);
-          }
+
+        // rujukan baru / status berubah → info singkat di chat
+        if (ev.tipe === 'rujukan' || ev.tipe === 'status') {
+          if (window.__tiketChat !== tiket) return;
+          renderInfoSistem(ev);
         }
-        else if (m.error) bubble('Pesan gagal terkirim: ' + m.error, 'in');
-      } catch (e) { /* abaikan format aneh */ }
-    };
-    socket.onclose = function () {
-      sesiLabel.textContent = 'Koneksi terputus — coba buka chat lagi';
-      socket = null;
-    };
+      }, { onReady: function () { rtSubscribed = true; flushAntrian(); } });
+    }).catch(function () {
+      sesiLabel.textContent = 'Tiket tidak ditemukan — periksa kembali nomor tiketmu';
+    });
     return false;
+  }
+
+  function flushAntrian() {
+    while (antrianChat.length && rtSiap) {
+      var teks = antrianChat.shift();
+      kirimPesanLangsung(teks);
+    }
+  }
+
+  async function kirimPesanLangsung(teks) {
+    var tiket = window.__tiketChat;
+    try {
+      await window.RuangPulihRT.kirimPesan(tiket, teks);
+      // pesan kita tidak didorong Realtime ke diri sendiri (fetch ulang
+      // history akan ambil pesan ini juga, tapi kita sudah render lokal)
+    } catch (e) {
+      bubble('Pesan gagal terkirim: ' + e.message, 'in');
+    }
+  }
+
+  // Render ulang history (hanya saat baru dapat pesan — hindari duplikat).
+  var lastRenderedCount = 0;
+  function renderHistory(pesan) {
+    if (!Array.isArray(pesan)) return;
+    if (pesan.length === lastRenderedCount) return; // tidak ada perubahan
+    lastRenderedCount = pesan.length;
+    chatBody.innerHTML = '';
+    pesan.forEach(function (p) { bubble(p.isi, p.pengirim === 'user' ? 'out' : 'in'); });
+    if (chatSelesaiFlag) {
+      var tutup = document.createElement('div');
+      tutup.className = 'chat-selesai';
+      tutup.innerHTML = '<strong>Sesi selesai</strong><span>Jika kamu butuh bantuan lagi, silakan buat laporan baru.</span>';
+      chatBody.appendChild(tutup);
+    }
+    hapusMengetik();
+    chatBody.scrollTop = chatBody.scrollHeight;
+  }
+
+  function renderInfoSistem(ev) {
+    var teks = ev.tipe === 'rujukan'
+      ? 'Konselor telah membuat rujukan. Cek detailnya di tiket kamu.'
+      : 'Status rujukan kamu diperbarui.';
+    var d = document.createElement('div');
+    d.className = 'msg sistem';
+    d.innerHTML = '<span>' + teks + '</span>';
+    chatBody.appendChild(d);
+    chatBody.scrollTop = chatBody.scrollHeight;
   }
 
   function tampilkanMengetik() {
@@ -963,14 +1010,18 @@
   }
   function hapusMengetik() { var t = $('#indikatorMengetik'); if (t) t.remove(); }
 
-  function kirimPesan(teks) {
+  async function kirimPesan(teks) {
     var tiket = window.__tiketChat;
-    var payload = JSON.stringify({ type: 'pesan', tiket: tiket, isi: teks });
     bubble(teks, 'out');
     inputChat.value = '';
     btnSend.disabled = true;
-    if (socketSiap()) socket.send(payload);
-    else antrianChat.push(payload);
+    if (rtSiap) {
+      try { await window.RuangPulihRT.kirimPesan(tiket, teks); }
+      catch (e) { bubble('Pesan gagal terkirim: ' + e.message, 'in'); }
+    } else {
+      antrianChat.push(teks);
+      socketSiap(); // coba sambung lagi
+    }
   }
 
   formChat.addEventListener('submit', function (e) {
@@ -1007,8 +1058,8 @@
     if (chatModal.classList.contains('aktif')) {
       belumDibaca = 0;
       fabBadge.hidden = true;
-      if (socket && socket.readyState === 1 && window.__tiketChat) {
-        socket.send(JSON.stringify({ type: 'baca', tiket: window.__tiketChat }));
+      if (rtSiap && window.__tiketChat && window.RuangPulihRT) {
+        window.RuangPulihRT.kirimBaca(window.__tiketChat);
       }
     }
   });

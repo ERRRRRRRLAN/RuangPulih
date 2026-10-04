@@ -28,6 +28,7 @@ app.use('/api/pengaduan', require('./routes/pengaduan'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/layanan', require('./routes/layanan'));
 app.use('/api/rujukan', require('./routes/rujukan'));
+app.use('/api/pesan', require('./routes/pesan'));
 
 // Frontend statis (root repo) — melayani index.html, css/, js/, konselor/
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -66,15 +67,17 @@ app.use((err, req, res, next) => {
 });
 
 const server = http.createServer(app);
-require('./ws').pasang(server);
 
-seedLayanan().catch(e => console.error('seed layanan gagal:', e.message));
+// WebSocket dinonaktifkan & diganti Supabase Realtime (tabel chat_event).
+// Realtime push dipegang Supabase, server hanya tulis/baca via HTTP.
+module.exports = app;
 
 if (require.main === module) {
+  // Jalankan langsung untuk dev lokal: node src/server.js
+  const { seedLayanan } = require('./seedLayanan');
+  seedLayanan().catch(e => console.error('seed layanan gagal:', e.message));
   server.listen(config.PORT, () => {
     console.log('Ruang Pulih jalan di http://localhost:' + config.PORT);
-    console.log('Login konselor: http://localhost:' + config.PORT + '/konselor/login.html');
+    console.log('Login konselor: http://localhost:' + config.PORT + '/konselor/masuk');
   });
 }
-
-module.exports = server;
