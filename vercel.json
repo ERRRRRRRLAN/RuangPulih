@@ -4,11 +4,16 @@
   "outputDirectory": ".",
   "functions": {
     "api/index.js": {
-      "memory": 1024,
       "includeFiles": "backend/**"
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.js" }
-  ]
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/program", "destination": "/program.html" },
+    { "source": "/konselor", "destination": "/konselor/login.html" },
+    { "source": "/konselor/masuk", "destination": "/konselor/login.html" },
+    { "source": "/konselor/login", "destination": "/konselor/login.html" },
+    { "source": "/konselor/dashboard", "destination": "/konselor/dashboard.html" }
+  ],
+  "cleanUrls": false
 }
