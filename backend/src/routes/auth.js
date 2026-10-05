@@ -39,16 +39,19 @@ router.post('/login', async (req, res) => {
   await db.prepare('UPDATE konselor SET gagal=0, terkunci_sampai=NULL WHERE id=$1').run(k.id);
   audit.catat(k.username, 'LOGIN', null, ip);
   const token = buatJWT({ id: k.id, peran: k.peran });
+  // secure hanya saat koneksi benar-benar HTTPS (produksi) — http lokal harus tetap mengirim cookie
+  const aman = req.secure || (req.headers['x-forwarded-proto'] === 'https');
   res.cookie('session', token, {
-    httpOnly: true, secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict', maxAge: 8 * 60 * 60 * 1000,
+    httpOnly: true, secure: aman,
+    sameSite: 'lax', maxAge: 8 * 60 * 60 * 1000,
   });
   res.json({ id: k.id, username: k.username, nama: k.nama, peran: k.peran });
 });
 
 router.post('/logout', butuhKonselor, (req, res) => {
   audit.catat(req.konselor.username, 'LOGOUT', null, req.ip);
-  res.clearCookie('session');
+  const aman = req.secure || (req.headers['x-forwarded-proto'] === 'https');
+  res.clearCookie('session', { httpOnly: true, secure: aman, sameSite: 'lax' });
   res.json({ ok: true });
 });
 

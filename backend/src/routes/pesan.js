@@ -5,7 +5,7 @@ const { verifikasiJWT, encrypt, decrypt } = require('../security');
 const { ambilSesi } = require('../deps');
 const db = require('../db');
 const audit = require('../audit');
-const { buatEventPesan } = require('../realtime');
+const { buatEventPesan, kirimNotifTelegram } = require('../realtime');
 
 const router = Router();
 const MAX_PESAN = 2000;
@@ -64,6 +64,10 @@ router.post('/', async (req, res) => {
 
     // Trigger PG otomatis buat chat_event → Realtime push ke semua subscriber.
     // Tidak perlu insert manual di sini.
+
+    // Dual-dispatch: kirim notifikasi Telegram ke pelapor (kalau sudah binding).
+    // Gak await — notifikasi gagal gak boleh nahan response.
+    if (pengirim === 'konselor') kirimNotifTelegram(tiket, 'konselor', String(isi)).catch(() => {});
 
     audit.catat(pengirim === 'konselor' ? ('konselor:' + pengirimId) : `user:${tiket}`,
       'KIRIM_PESAN', `${tiket} dari=${pengirim}`, req.ip);

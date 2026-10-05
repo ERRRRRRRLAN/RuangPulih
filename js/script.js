@@ -8,6 +8,10 @@
 (function () {
   'use strict';
 
+  // Username bot Telegram (tanpa @) — dipakai deep link ?start=PN-... di gate chat.
+  var BOT_TELEGRAM = 'RuangPulihBot';
+  window.BOT_TELEGRAM = BOT_TELEGRAM;
+
   var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
   var $ = function (sel, root) { return (root || document).querySelector(sel); };
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -816,6 +820,29 @@
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && chatModal.classList.contains('aktif')) tutupModal();
   });
+
+  // Tombol "Chat via Telegram" di gate: bangun deep link t.me/RuangPulihBot?start=PN-...
+  // Pelapor tetap anonim — Telegram hanya kasih user ID (pseudonim) ke bot kita.
+  var gateTelegram = $('#gateTelegram');
+  if (gateTelegram) {
+    function perbaruiLinkTelegram() {
+      var kode = (inputTiketChat.value || '').trim().toUpperCase();
+      var base = 'https://t.me/' + BOT_TELEGRAM + '?start=' + encodeURIComponent(kode);
+      gateTelegram.href = kode ? base : 'https://t.me/' + BOT_TELEGRAM;
+    }
+    // BOT_TELEGRAM didefinisikan global (lihat bawah) — username bot tanpa @
+    perbaruiLinkTelegram();
+    inputTiketChat.addEventListener('input', perbaruiLinkTelegram);
+    gateTelegram.addEventListener('click', function () {
+      var kode = (inputTiketChat.value || '').trim().toUpperCase();
+      if (!kode) {
+        toast('Masukkan nomor tiket dulu, lalu klik Chat via Telegram.');
+        inputTiketChat.focus();
+        return;
+      }
+      // Tiket dipasang ke URL — bot akan binding otomatis saat pelapor tekan Start.
+    });
+  }
 
   // Link "Konseling" (nav, hero, footer, CTA pengaduan) juga membuka modal.
   $$('a[href="#chat"]').forEach(function (a) {

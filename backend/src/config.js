@@ -13,6 +13,8 @@ const config = {
   JWT_TTL: process.env.JWT_TTL || '8h',
   PORT: process.env.PORT || 3000,
   NODE_ENV: process.env.NODE_ENV || 'development',
+  TELEGRAM_TOKEN: process.env.TELEGRAM_BOT_TOKEN || '', // '' = fitur TG nonaktif
+  TELEGRAM_BOTNAME: process.env.TELEGRAM_BOTNAME || 'RuangPulihBot',
 };
 
 if (config.DATA_KEY.length !== 32) throw new Error('DATA_KEY_HEX harus 32 byte (64 hex chars)');
