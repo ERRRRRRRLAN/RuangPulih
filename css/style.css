@@ -396,22 +396,27 @@ button { font: inherit; color: inherit; }
 .steps b { display: block; font-size: .94rem; color: var(--text); }
 .steps p { font-size: .85rem; margin-top: 2px; }
 
-/* Cara kerja: grid 4 kartu langkah + banner catatan */
-.cara-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s-4); margin-bottom: var(--s-6); }
-.cara-kartu { display: flex; flex-direction: column; gap: 10px; padding: 22px 20px; }
-.cara-kartu h3 { font-size: 1.02rem; }
-.cara-kartu p { font-size: .87rem; color: var(--text-soft); line-height: 1.65; margin: 0; }
-.cara-ikon {
-  width: 44px; height: 44px; border-radius: 12px; display: inline-flex;
-  align-items: center; justify-content: center; color: var(--accent);
-  background: var(--soft, rgba(127,127,127,.1));
+/* Cara kerja: steps kiri + ilustrasi strip tiket kanan (gaya ticket-box) */
+.pengaduan-ilustrasi { position: sticky; top: 90px; }
+.ilustrasi-grafis {
+  background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--out);
+  padding: var(--s-6); display: flex; flex-direction: column; gap: 13px; max-width: 470px;
 }
-.banner { display: flex; gap: 14px; align-items: flex-start; padding: 20px 22px; }
-.banner svg { flex: none; color: var(--accent); margin-top: 2px; }
-.banner h3 { font-size: 1rem; margin-bottom: 6px; }
-.banner p { font-size: .88rem; color: var(--text-soft); line-height: 1.65; margin: 0; }
-@media (max-width: 980px) { .cara-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 560px) { .cara-grid { grid-template-columns: 1fr; } }
+.il-box {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 16px; border-radius: var(--r-md); box-shadow: var(--in);
+  background: var(--surface-2);
+}
+.il-box span {
+  width: 30px; height: 30px; border-radius: 50%; flex: none;
+  display: grid; place-items: center; font-weight: 800; font-size: .82rem;
+  color: var(--text-mute); background: var(--surface); box-shadow: var(--out-sm);
+}
+.il-box p { font-size: .9rem; font-weight: 600; color: var(--text-soft); }
+.il-box-aktif { box-shadow: var(--in-deep, var(--in)); }
+.il-box-aktif span { color: var(--on-accent); background: var(--accent); box-shadow: none; }
+.il-box-aktif p { color: var(--text); }
+.il-garis { width: 2px; height: 14px; background: var(--line); margin-left: 30px; border-radius: 99px; }
 .info-note {
   display: flex; gap: 12px; align-items: flex-start;
   padding: 15px; border-radius: var(--r-md); box-shadow: var(--in);
