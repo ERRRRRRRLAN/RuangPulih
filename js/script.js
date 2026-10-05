@@ -499,7 +499,7 @@
       // otomatis-binding chat ke tiket ini, supaya pelapor bisa langsung
       // chat dengan konselor tanpa perlu ketik tiket lagi
       window.__tiketChat = tiket;
-      try { sessionStorage.setItem('tiket-aktif', tiket); } catch (e2) { /* mode privat */ }
+      try { sessionStorage.setItem('tiket-aktif', tiket); localStorage.setItem('tiket-terakhir', tiket); } catch (e2) { /* mode privat */ }
       if (typeof sesiLabel !== 'undefined' && sesiLabel) {
         sesiLabel.textContent = 'Tiket ' + tiket + ' aktif';
       }
@@ -817,6 +817,16 @@
     if (chatModal.classList.contains('aktif')) tutupModal(); else bukaModal();
   });
   $('#tutupChat').addEventListener('click', tutupModal);
+
+  // Salin tiket sesi aktif dari header chat (muncul setelah tiket divalidasi).
+  var btnSalinSesi = $('#btnSalinTiketSesi');
+  if (btnSalinSesi) {
+    btnSalinSesi.addEventListener('click', function () {
+      var kode = window.__tiketChat || '';
+      if (!kode) { toast('Tiket belum aktif.'); return; }
+      copyText(kode, 'Nomor tiket disalin: ' + kode);
+    });
+  }
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && chatModal.classList.contains('aktif')) tutupModal();
   });
@@ -842,6 +852,39 @@
       }
       // Tiket dipasang ke URL — bot akan binding otomatis saat pelapor tekan Start.
     });
+  }
+
+  // Tombol salin tiket di gate: muncul hanya saat ada teks tiket valid,
+  // dan setiap kali modal chat dibuka tiket tersimpan otomatis terisi.
+  var btnSalinTiketGate = $('#btnSalinTiketGate');
+  if (btnSalinTiketGate) {
+    function perbaruiSalinGate() {
+      var kode = (inputTiketChat.value || '').trim();
+      btnSalinTiketGate.hidden = !kode;
+    }
+    inputTiketChat.addEventListener('input', perbaruiSalinGate);
+    btnSalinTiketGate.addEventListener('click', function () {
+      var kode = (inputTiketChat.value || '').trim().toUpperCase();
+      if (!kode) return;
+      copyText(kode, 'Nomor tiket disalin: ' + kode);
+      btnSalinTiketGate.focus();
+    });
+    // Setiap kali modal dibuka: kalau ada tiket tersimpan (sessionStorage),
+    // isi otomatis ke input gate supaya user tinggal "Mulai Chat" atau salin.
+    var bukaAsli = window.__bukaChatModal;
+    if (typeof bukaAsli === 'function') {
+      window.__bukaChatModal = function () {
+        if (!inputTiketChat.value.trim()) {
+          var simpan = null;
+          try {
+            simpan = sessionStorage.getItem('tiket-aktif') || localStorage.getItem('tiket-terakhir');
+          } catch (e) { /* mode privat */ }
+          if (simpan) inputTiketChat.value = simpan;
+        }
+        if (btnSalinTiketGate) btnSalinTiketGate.hidden = !inputTiketChat.value.trim();
+        bukaAsli();
+      };
+    }
   }
 
   // Link "Konseling" (nav, hero, footer, CTA pengaduan) juga membuka modal.
@@ -875,6 +918,7 @@
 
       window.__tiketChat = kode;
       sessionStorage.setItem('tiket-aktif', kode);
+      try { localStorage.setItem('tiket-terakhir', kode); } catch (e4) { /* mode privat */ }
 
       // Tampilkan identitas konselor penangan (jika sudah ditugaskan).
       judulChat.textContent = data.konselor
@@ -882,6 +926,8 @@
         : 'Konselor Ruang Pulih';
       var sambutan = data.program ? 'Program ' + data.program + ' · ' : '';
       sesiLabel.textContent = 'Tiket ' + kode + ' · ' + sambutan + (data.konselor ? 'ditangani oleh ' + data.konselor : 'belum ditugaskan');
+      var btnSalinSesi = $('#btnSalinTiketSesi');
+      if (btnSalinSesi) btnSalinSesi.hidden = false;
 
       formTiket.hidden = true;
       chatIsi.hidden = false;

@@ -91,7 +91,7 @@ async function binding(msg) {
   if (!kode) {
     await balas(chatId,
       'Halo! Saya RuangPulihBot.\n\n' +
-      'Untuk menghubungkan chat ini dengan laporan Anda, buka web Ruang Pulih dan klik tombol "Chat via Telegram" — atau ketik /mulai PN-XXXX (nomor tiket Anda).');
+      'Untuk menghubungkan chat ini dengan laporan Anda, buka web Ruang Pulih dan klik tombol "Chat via Telegram" — atau ketik /chat PN-XXXX (nomor tiket Anda).');
     return;
   }
 
@@ -125,7 +125,7 @@ async function terimaPesan(msg) {
     'SELECT no_tiket, no_program FROM ikatan_telegram WHERE telegram_id=$1'
   ).get(tgId);
   if (!ikatan) {
-    await balas(chatId, 'Anda belum menghubungkan tiket. Ketik /mulai PN-XXXX (nomor tiket Anda).');
+    await balas(chatId, 'Anda belum menghubungkan tiket. Ketik /chat PN-XXXX (nomor tiket Anda).');
     return;
   }
   const tiket = ikatan.no_tiket || ikatan.no_program;
@@ -136,7 +136,7 @@ async function terimaPesan(msg) {
   if (selesai) {
     await balas(chatId,
       'Sesi untuk tiket ini sudah selesai.\n\n' +
-      'Kalau butuh bantuan lagi, ajukan laporan baru di web lalu ketik /mulai dengan tiket baru — atau hubungi hotline: 188 (BNN) / 119 (Medis) / 110 (Polri).',
+      'Kalau butuh bantuan lagi, ajukan laporan baru di web lalu ketik /chat dengan tiket baru — atau hubungi hotline: 188 (BNN) / 119 (Medis) / 110 (Polri).',
       { reply_markup: { inline_keyboard: [[
         { text: 'Ajukan laporan baru', url: `${URL_WEB}/` },
         { text: 'Lihat program', url: `${URL_WEB}/program` },
@@ -172,6 +172,8 @@ async function handleCommand(msg) {
   const args = (msg.text || '').trim().split(/\s+/).slice(1).join(' ').trim();
 
   if (cmd === '/start') return binding(msg);
+  if (cmd === '/chat') return binding(msg);
+  // /mulai = alias lama, tetap diterima supaya pengguna lama tidak bingung
   if (cmd === '/mulai') return binding(msg);
 
   if (cmd === '/status') return handleStatusCommand(chatId, msg.from.id, args);
@@ -180,7 +182,7 @@ async function handleCommand(msg) {
     await balas(chatId,
       'Ruang Pulih Bot — konseling anonim narkotika.\n\n' +
       '/status — cek status tiket Anda\n' +
-      '/mulai PN-XXXX — hubungkan tiket lain\n' +
+      '/chat PN-XXXX — hubungkan tiket lain\n' +
       '/lepas — putuskan ikatan (chat Telegram tidak terkait tiket lagi)\n' +
       '/bantuan — bantuan ini\n\n' +
       'Chat dengan konselor: kirim pesan biasa di sini, atau buka web.\n' +
@@ -198,7 +200,7 @@ async function handleCommand(msg) {
 async function handleStatusCommand(chatId, tgId, args) {
   const ikatan = await db.prepare('SELECT no_tiket, no_program FROM ikatan_telegram WHERE telegram_id=$1').get(tgId);
   const kode = args || (ikatan && (ikatan.no_tiket || ikatan.no_program));
-  if (!kode) { await balas(chatId, 'Penggunaan: /status PN-XXXX atau hubungkan tiket dulu via /mulai.'); return; }
+  if (!kode) { await balas(chatId, 'Penggunaan: /status PN-XXXX atau hubungkan tiket dulu via /chat.'); return; }
   const s = await statusTiket(kode);
   await balas(chatId, s || `Tiket ${esc(kode)} tidak ditemukan.`);
 }

@@ -395,6 +395,23 @@ button { font: inherit; color: inherit; }
 }
 .steps b { display: block; font-size: .94rem; color: var(--text); }
 .steps p { font-size: .85rem; margin-top: 2px; }
+
+/* Cara kerja: grid 4 kartu langkah + banner catatan */
+.cara-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s-4); margin-bottom: var(--s-6); }
+.cara-kartu { display: flex; flex-direction: column; gap: 10px; padding: 22px 20px; }
+.cara-kartu h3 { font-size: 1.02rem; }
+.cara-kartu p { font-size: .87rem; color: var(--text-soft); line-height: 1.65; margin: 0; }
+.cara-ikon {
+  width: 44px; height: 44px; border-radius: 12px; display: inline-flex;
+  align-items: center; justify-content: center; color: var(--accent);
+  background: var(--soft, rgba(127,127,127,.1));
+}
+.banner { display: flex; gap: 14px; align-items: flex-start; padding: 20px 22px; }
+.banner svg { flex: none; color: var(--accent); margin-top: 2px; }
+.banner h3 { font-size: 1rem; margin-bottom: 6px; }
+.banner p { font-size: .88rem; color: var(--text-soft); line-height: 1.65; margin: 0; }
+@media (max-width: 980px) { .cara-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .cara-grid { grid-template-columns: 1fr; } }
 .info-note {
   display: flex; gap: 12px; align-items: flex-start;
   padding: 15px; border-radius: var(--r-md); box-shadow: var(--in);
@@ -686,6 +703,16 @@ body.chat-terbuka .navbar { z-index: 50; }
 .gate-bawah a { color: var(--accent); font-weight: 700; }
 .gate-bawah a:hover { text-decoration: underline; }
 .gate-or { text-align: center; font-size: .75rem; color: var(--text-mute); margin: -4px 0 2px; letter-spacing: .04em; }
+.gate-hint { font-size: .72rem; color: var(--text-mute); margin: 6px 0 0; line-height: 1.5; }
+.tiket-input-wrap { position: relative; display: flex; align-items: center; }
+.tiket-input-wrap input { padding-right: 42px; width: 100%; }
+.tiket-salin {
+  position: absolute; right: 6px; display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 8px; cursor: pointer; flex: none;
+}
+.tiket-salin:hover { background: var(--hover, rgba(127,127,127,.14)); }
+.tiket-salin[hidden] { display: none; }
+.chat-header-aksi .tiket-salin { position: static; }
 
 /* Tombol "Chat via Telegram" — solid accent, neomorphism, tanpa gradient */
 .btn-telegram {

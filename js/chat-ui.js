@@ -27,6 +27,9 @@
           '</div>' +
         '</div>' +
         '<div class="chat-header-aksi">' +
+          '<button type="button" class="btn-icon tiket-salin" id="btnSalinTiketSesi" aria-label="Salin nomor tiket sesi ini" title="Salin nomor tiket sesi ini" hidden>' +
+            '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>' +
+          '</button>' +
           '<button type="button" class="btn-icon chat-toggle-hide" id="btnSembunyiChatHeader" aria-label="Sembunyikan chat" title="Sembunyikan chat">' +
             '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 5.1A9 9 0 0121 11.5"/><path d="M6.3 6.4A9 9 0 003 11.5a9 9 0 0013.4 6.1"/><path d="M12 16.4v.01"/></svg>' +
           '</button>' +
@@ -39,7 +42,13 @@
         '<p class="gate-teks">Chat ini terhubung ke laporan Anda. Masukkan nomor tiket yang Anda dapatkan saat melaporkan agar konselor bisa membalas.</p>' +
         '<div class="field">' +
           '<label for="inputTiketChat">Nomor tiket</label>' +
-          '<input type="text" id="inputTiketChat" placeholder="PN-YYYYMMDD-XXXX" autocomplete="off" spellcheck="false" />' +
+          '<div class="tiket-input-wrap">' +
+            '<input type="text" id="inputTiketChat" placeholder="PN-YYYYMMDD-XXXX" autocomplete="off" spellcheck="false" />' +
+            '<button type="button" class="btn-icon tiket-salin" id="btnSalinTiketGate" aria-label="Salin nomor tiket" title="Salin nomor tiket" hidden>' +
+              '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>' +
+            '</button>' +
+          '</div>' +
+          '<p class="gate-hint" id="gateHintTiket">Nomor tiket Anda tersimpan di perangkat ini — klik ikon salin bila perlu memakainya lagi.</p>' +
         '</div>' +
         '<button type="submit" class="btn btn-primary btn-block">Mulai Chat</button>' +
         '<p class="gate-or">atau</p>' +
