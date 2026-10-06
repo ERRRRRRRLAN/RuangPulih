@@ -791,9 +791,12 @@ async function muatInbox() {
     renderPool();
     var pc = $('#poolCount');
     if (pc) {
-      var n = (state.poolBelumDiambil || []).length;
-      pc.hidden = n === 0;
-      pc.textContent = n;
+      var pl = state.poolBelumDiambil || [];
+      var nD = pl.filter(function (p) { return p.darurat; }).length;
+      pc.hidden = pl.length === 0;
+      // Badge informatif: jumlah + penanda darurat biar tak cuma angka polos.
+      pc.textContent = pl.length + (nD ? ' · ' + nD + ' darurat' : '');
+      pc.classList.toggle('pool-badge-darurat', nD > 0);
     }
   } catch (e) {
     var list = $('#inboxList');
@@ -857,8 +860,7 @@ function renderPool() {
   $('#poolKosong').hidden = pool.length > 0;
   var html = '';
   pool.forEach(function (p) {
-    var darurat = p.status === 'Diterima' && p.label === 'DARURAT'
-      ? '<span class="ib-tag ib-tag-darurat">Darurat</span>' : '';
+    var darurat = p.darurat ? '<span class="ib-tag ib-tag-darurat">Darurat</span>' : '';
     html += '<div class="ib-item ib-item-pool" data-tiket="' + esc(p.no_tiket) + '">' +
       '<div class="ib-baris"><span class="ib-dot"></span>' +
       '<strong>' + esc(p.no_tiket) + '</strong>' + darurat +

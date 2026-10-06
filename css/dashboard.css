@@ -141,6 +141,16 @@ body { background: var(--bg); color: var(--text); }
   display: inline-block; margin-left: 6px; min-width: 18px; text-align: center;
   font-size: .68rem; font-weight: 800; padding: 1px 7px; border-radius: 99px;
   background: var(--accent); color: var(--surface);
+  white-space: nowrap; text-transform: lowercase;
+}
+/* Ada darurat di antrian: badge merah, tak bisa diabaikan */
+.dash-tab .pool-badge-darurat {
+  background: var(--danger);
+  animation: pool-pulse 2.2s ease-in-out infinite;
+}
+@keyframes pool-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
 }
 
 /* dropdown di dalam modal harus di atas konten modal */
