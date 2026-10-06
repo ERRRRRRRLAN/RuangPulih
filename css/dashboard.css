@@ -28,20 +28,28 @@ body { background: var(--bg); color: var(--text); }
   background: var(--surface); border: none; border-radius: var(--r-md);
   padding: 14px 16px; box-shadow: var(--out-sm);
   font: inherit; color: var(--text);
+  line-height: 1.35; /* default 1.6 (dari style.css) bikin baris saling silang */
   transition: box-shadow var(--dur-sm) var(--ease);
 }
 .ib-item:hover { box-shadow: var(--out); }
 .ib-item.aktif { box-shadow: var(--in); }
 .ib-item.aktif strong { color: var(--accent); }
-/* 3 baris tetap: susunan tidak berubah oleh panjang badge/status */
-.ib-baris { display: flex; align-items: center; gap: 10px; min-width: 0; }
+/* Baris flex: tinggi tetap, overflow jelas — teks preview tak pernah menumpuk */
+.ib-baris {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+  line-height: 1.35;
+}
 .ib-baris + .ib-baris { margin-top: 7px; }
 .ib-baris strong { font-size: .88rem; letter-spacing: .02em; }
 .ib-waktu { margin-left: auto; flex: none; font-size: .72rem; color: var(--text-mute); padding-left: 8px; }
 .ib-preview {
-  flex: 1; min-width: 0; font-size: .8rem; color: var(--text-mute);
+  flex: 1; min-width: 0; font-size: .8rem; color: var(--text-mute); line-height: 1.4;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: block; /* pastikan ellipsis jalan: span inline perlu blok di dalam flex */
 }
+/* Ikon kecil inline (dot, unread) tak boleh memaksa tinggi baris — sejajarkan */
+.ib-dot { align-self: center; }
+.ib-unread { align-self: center; }
 .ib-unread {
   flex: none; min-width: 20px; height: 20px; padding: 0 7px; border-radius: 99px;
   display: inline-grid; place-items: center;
