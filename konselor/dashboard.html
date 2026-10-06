@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
-  <link rel="stylesheet" href="/css/dashboard.css?v=4">
+  <link rel="stylesheet" href="/css/dashboard.css?v=6">
 </head>
 <body>
   <header class="dash-top">
@@ -41,18 +41,28 @@
 
     <!-- TAB INBOX (chat semua tiket) -->
     <section id="panelAntrian" class="dash-panel">
-      <div class="panel-head">
-        <h2>Inbox</h2>
-      </div>
-      <div class="inbox-grid">
-        <aside class="inbox-list" id="inboxList" aria-label="Daftar tiket"></aside>
+      <div class="inbox-shell">
+        <aside class="inbox-side">
+          <header class="inbox-side-head">
+            <h2>Inbox</h2>
+            <span class="inbox-count" id="inboxCount"></span>
+          </header>
+          <div class="inbox-filter" role="tablist" aria-label="Filter inbox">
+            <button type="button" class="inbox-filter-btn aktif" data-f="">Semua</button>
+            <button type="button" class="inbox-filter-btn" data-f="unread">Belum dibaca</button>
+            <button type="button" class="inbox-filter-btn" data-f="darurat">Darurat</button>
+            <button type="button" class="inbox-filter-btn" data-f="selesai">Selesai</button>
+          </div>
+          <div class="inbox-list" id="inboxList" aria-label="Daftar tiket"></div>
+        </aside>
         <div class="inbox-chat" id="inboxChat">
           <div class="inbox-kosong" id="inboxKosong">
+            <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 01-8.5 8.5c-1.5 0-3-.4-4.2-1.1L3 20l1.1-5.3A8.5 8.5 0 1121 11.5z"/></svg>
             <p>Pilih tiket di kiri untuk membuka percakapan.</p>
           </div>
           <div class="inbox-aktif" id="inboxAktif" hidden>
             <header class="inbox-chat-head">
-              <div>
+              <div class="ib-judul">
                 <strong id="ibTiket">-</strong>
                 <span id="ibMeta" class="ib-meta">-</span>
               </div>
@@ -313,6 +323,6 @@
   <script src="/assets/supabase.js"></script>
   <script>if (typeof window.supabase === 'undefined') document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"><\/script>');</script>
   <script src="/js/realtime.js"></script>
-  <script src="/js/konselor-dashboard.js?v=4"></script>
+  <script src="/js/konselor-dashboard.js?v=6"></script>
 </body>
 </html>

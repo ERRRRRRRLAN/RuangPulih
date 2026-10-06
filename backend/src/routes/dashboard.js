@@ -32,6 +32,7 @@ router.get('/antrian', butuhKonselor, async (req, res) => {
   res.json({ total, items: q.map(p => ({
     no_tiket: p.no_tiket, untuk: p.untuk, kategori: p.kategori, status: p.status,
     dibuat: p.dibuat, diperbarui: p.diperbarui, dibaca: !!p.dibaca,
+    ditangani_oleh: p.ditangani_oleh || null,
   })) });
 });
 

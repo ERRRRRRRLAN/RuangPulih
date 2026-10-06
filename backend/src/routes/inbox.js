@@ -5,6 +5,7 @@ const router = express.Router();
 const db = require('../db');
 const { butuhKonselor } = require('../deps');
 const { decrypt } = require('../security');
+const { catat } = require('../audit');
 
 function potong(teks, n) {
   const s = String(teks || '');
@@ -12,8 +13,12 @@ function potong(teks, n) {
 }
 
 // GET /api/dashboard/inbox — feed chat: tiket + pesan terakhir + unread count.
+// HANYA tiket yang ditangani konselor yang login (ditangani_oleh = saya).
+// Tiket belum diambil tidak masuk inbox siapa pun — diambil lewat tab Antrian
+// (atau otomatis saat konselor kirim pesan pertama), baru muncul di inbox.
 router.get('/inbox', butuhKonselor, async (req, res) => {
   try {
+    const idSaya = req.konselor.id;
     const pn = await db.prepare(`
       SELECT p.no_tiket, p.status, p.darurat, p.dibuat, p.dibaca,
              COALESCE(k.nama, '') AS penangan,
@@ -23,9 +28,10 @@ router.get('/inbox', butuhKonselor, async (req, res) => {
              (SELECT ps.dibuat FROM pesan ps WHERE ps.no_tiket = p.no_tiket ORDER BY ps.dibuat DESC LIMIT 1) AS pesan_terakhir_ts
       FROM pengaduan p
       LEFT JOIN konselor k ON k.id = p.ditangani_oleh
+      WHERE p.ditangani_oleh = $1
       ORDER BY p.dibaca ASC, p.dibuat DESC
       LIMIT 100
-    `).all();
+    `).all(idSaya);
 
     const pm = await db.prepare(`
       SELECT m.kode_lacak AS no_tiket, m.status, m.prioritas, m.dibuat,
@@ -35,8 +41,9 @@ router.get('/inbox', butuhKonselor, async (req, res) => {
              (SELECT ps.pengirim FROM pesan ps WHERE ps.no_tiket = m.kode_lacak ORDER BY ps.dibuat DESC LIMIT 1) AS pengirim_terakhir,
              (SELECT ps.dibuat FROM pesan ps WHERE ps.no_tiket = m.kode_lacak ORDER BY ps.dibuat DESC LIMIT 1) AS pesan_terakhir_ts
       FROM minat_program m LEFT JOIN konselor k ON k.id = m.ditangani_oleh
+      WHERE m.ditangani_oleh = $1
       ORDER BY (m.prioritas='Tinggi') DESC, m.dibuat DESC LIMIT 200
-    `).all();
+    `).all(idSaya);
 
     const items = [];
     const dek = (blob) => { try { return blob ? decrypt(blob) : null; } catch (e) { return '(pesan lama tak terbaca)'; } };
@@ -105,6 +112,38 @@ router.delete('/inbox/:tiket/baca', butuhKonselor, async (req, res) => {
     }
     res.json({ ok: true });
   } catch (e) {
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+// POST /api/dashboard/inbox/:tiket/ambil — konselor mengambil penanganan tiket
+// yang belum ditugaskan. Gagal 409 kalau konselor lain sudah lebih dulu.
+router.post('/inbox/:tiket/ambil', butuhKonselor, async (req, res) => {
+  try {
+    const tiket = String(req.params.tiket || '').toUpperCase();
+    const kodeValid = /^P[NM]-\d{8}-[0-9A-F]{4}$/.test(tiket);
+    if (!kodeValid) return res.status(400).json({ error: 'tiket tidak valid' });
+    if (tiket.startsWith('PN-')) {
+      const r = await db.prepare('UPDATE pengaduan SET ditangani_oleh=$1 WHERE no_tiket=$2 AND ditangani_oleh IS NULL')
+        .run(req.konselor.id, tiket);
+      if (r.changes === 0) {
+        const p = await db.prepare('SELECT ditangani_oleh FROM pengaduan WHERE no_tiket=$1').get(tiket);
+        if (!p) return res.status(404).json({ error: 'tiket tidak ditemukan' });
+        return res.status(409).json({ error: 'tiket sudah ditangani konselor lain' });
+      }
+    } else {
+      const r = await db.prepare('UPDATE minat_program SET ditangani_oleh=$1, diperbarui=$2 WHERE kode_lacak=$3 AND ditangani_oleh IS NULL')
+        .run(req.konselor.id, Date.now(), tiket);
+      if (r.changes === 0) {
+        const m = await db.prepare('SELECT ditangani_oleh FROM minat_program WHERE kode_lacak=$1').get(tiket);
+        if (!m) return res.status(404).json({ error: 'tiket tidak ditemukan' });
+        return res.status(409).json({ error: 'tiket sudah ditangani konselor lain' });
+      }
+    }
+    catat(req.konselor.username, 'AMBIL_PENANGANAN', tiket, req.ip);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('ambil error', e);
     res.status(500).json({ error: 'server error' });
   }
 });

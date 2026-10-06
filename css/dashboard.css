@@ -13,55 +13,65 @@ body { background: var(--bg); color: var(--text); }
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
-/* ---------- INBOX dua kolom ---------- */
-.inbox-grid {
+/* ---------- INBOX dua kolom (redesign) ---------- */
+/* Shell: panel kiri = kepala + filter + list; kanan = chat. Satu kartu besar
+   neomorphism — list tak lagi "kartu di dalam kartu". */
+.inbox-shell {
   display: grid; grid-template-columns: 360px 1fr; gap: 20px; align-items: stretch;
-  min-height: 480px;
+  background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--out);
+  padding: 18px; min-height: 620px;
 }
+.inbox-side {
+  display: flex; flex-direction: column; min-width: 0;
+  border-right: 1px solid var(--line); padding-right: 18px;
+}
+.inbox-side-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  padding-bottom: 12px;
+}
+.inbox-side-head h2 { font-size: 1.1rem; }
+.inbox-count { font-size: .74rem; font-weight: 700; color: var(--text-mute); white-space: nowrap; }
+.inbox-filter { display: flex; gap: 6px; flex-wrap: wrap; padding-bottom: 12px; }
+.inbox-filter-btn {
+  font: inherit; font-size: .74rem; font-weight: 700; cursor: pointer;
+  border: none; border-radius: 99px; padding: 6px 12px;
+  background: transparent; color: var(--text-mute);
+  box-shadow: var(--in);
+  transition: color var(--dur-sm) var(--ease), background var(--dur-sm) var(--ease), box-shadow var(--dur-sm) var(--ease);
+}
+.inbox-filter-btn:hover { color: var(--text); }
+.inbox-filter-btn.aktif {
+  color: var(--on-accent); background: var(--accent); box-shadow: none;
+}
+.inbox-filter-kosong { padding: 18px 6px; font-size: .85rem; color: var(--text-mute); }
+
 .inbox-list {
-  display: flex; flex-direction: column; gap: 12px; max-height: 640px; overflow-y: auto;
-  padding: 8px; /* ruang untuk shadow item — shadow tak terpotong scroll container */
-  scrollbar-gutter: stable;
+  flex: 1; display: flex; flex-direction: column; gap: 4px;
+  overflow-y: auto; scrollbar-gutter: stable;
+  margin: 0 -6px; padding: 0 6px; /* ruang scrollbar tanpa menggeser teks */
 }
+/* Item: FLAT (tanpa kartu-dalam-kartu) — hover & aktif cukup background tint.
+   Nol shadow per item = nol potongan shadow, nol overlap. */
 .ib-item {
   display: block; width: 100%; text-align: left; cursor: pointer;
-  background: var(--surface); border: none; border-radius: var(--r-md);
-  padding: 14px 16px; box-shadow: var(--out-sm);
-  font: inherit; color: var(--text);
-  line-height: 1.35; /* default 1.6 (dari style.css) bikin baris saling silang */
-  transition: box-shadow var(--dur-sm) var(--ease);
-}
-.ib-item:hover { box-shadow: var(--out); }
-.ib-item.aktif { box-shadow: var(--in); }
-.ib-item.aktif strong { color: var(--accent); }
-/* Baris flex: tinggi tetap, overflow jelas — teks preview tak pernah menumpuk */
-.ib-baris {
-  display: flex; align-items: center; gap: 10px; min-width: 0;
+  background: transparent; border: none; border-radius: var(--r-md);
+  padding: 11px 12px; font: inherit; color: var(--text);
   line-height: 1.35;
+  transition: background var(--dur-sm) var(--ease);
 }
-.ib-baris + .ib-baris { margin-top: 7px; }
-.ib-baris strong { font-size: .88rem; letter-spacing: .02em; }
-.ib-waktu { margin-left: auto; flex: none; font-size: .72rem; color: var(--text-mute); padding-left: 8px; }
+.ib-item:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.ib-item.aktif { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.ib-item.aktif strong { color: var(--accent); }
+.ib-baris {
+  display: flex; align-items: center; gap: 9px; min-width: 0; line-height: 1.35;
+}
+.ib-baris + .ib-baris { margin-top: 4px; }
+.ib-baris strong { font-size: .86rem; letter-spacing: .02em; }
+.ib-waktu { margin-left: auto; flex: none; font-size: .71rem; color: var(--text-mute); padding-left: 8px; }
 .ib-preview {
-  flex: 1; min-width: 0; font-size: .8rem; color: var(--text-mute); line-height: 1.4;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  display: block; /* pastikan ellipsis jalan: span inline perlu blok di dalam flex */
+  flex: 1; min-width: 0; font-size: .79rem; color: var(--text-mute); line-height: 1.4;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;
 }
-/* Ikon kecil inline (dot, unread) tak boleh memaksa tinggi baris — sejajarkan */
-.ib-dot { align-self: center; }
-.ib-unread { align-self: center; }
-.ib-unread {
-  flex: none; min-width: 20px; height: 20px; padding: 0 7px; border-radius: 99px;
-  display: inline-grid; place-items: center;
-  background: var(--accent); color: var(--on-accent);
-  font-size: .7rem; font-weight: 800;
-}
-.ib-tag {
-  flex: none; font-size: .64rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
-  padding: 4px 10px; border-radius: 99px; color: var(--text-mute);
-  background: var(--surface-2); box-shadow: var(--in);
-}
-/* Dot status: warna ringkas per status — menggantikan badge pill yang menumpuk */
 .ib-dot {
   flex: none; width: 9px; height: 9px; border-radius: 50%;
   background: var(--text-mute); opacity: .55;
@@ -69,48 +79,51 @@ body { background: var(--bg); color: var(--text); }
 .ib-dot[title="Diterima"] { background: var(--accent-2); opacity: 1; }
 .ib-dot[title="Ditinjau"] { background: #d9a441; opacity: 1; }
 .ib-dot[title="Dalam Penanganan"] { background: var(--accent); opacity: 1; }
-.ib-dot[title="Selesai"] { background: var(--text-mute); opacity: .4; }
+.ib-dot[title="Selesai"] { background: var(--text-mute); opacity: .35; }
 .ib-dot[title="Baru"] { background: var(--accent-2); opacity: 1; }
 .ib-dot[title="Dihubungi"] { background: #d9a441; opacity: 1; }
 .ib-dot[title="Terdaftar"] { background: var(--accent); opacity: 1; }
-/* Header grup hari */
-.ib-grup {
-  font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
-  color: var(--text-mute); padding: 10px 6px 2px;
+.ib-unread {
+  flex: none; align-self: center; min-width: 20px; height: 20px; padding: 0 7px;
+  border-radius: 99px; display: inline-grid; place-items: center;
+  background: var(--accent); color: var(--on-accent); font-size: .7rem; font-weight: 800;
 }
-.ib-grup:not(:first-child) { margin-top: 6px; }
-/* badge status di list: ukuran enak dibaca, tetap satu baris */
-.ib-item .badge { font-size: .72rem; padding: 5px 12px; white-space: nowrap; }
-/* List sempit (layar kecil / window sempit): ruang kiri dot jangan memakan tempat */
-@media (max-width: 1240px) {
-  .inbox-grid { grid-template-columns: 300px 1fr; }
-  .ib-item { padding: 12px 14px; }
-  .ib-item .badge { font-size: .68rem; padding: 4px 8px; }
-  .ib-preview { font-size: .76rem; }
+.ib-tag {
+  flex: none; font-size: .62rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 99px; color: var(--text-mute);
+  background: color-mix(in srgb, var(--text-mute) 10%, transparent);
 }
-.ib-tag-darurat { color: var(--danger); }
-.inbox-list { align-self: start; }
+.ib-tag-darurat { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+
+/* Panel chat kanan: menyatu dengan shell (tanpa kartu kedua) */
 .inbox-chat {
-  background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--out);
-  padding: 16px; min-height: 640px; display: flex; flex-direction: column;
+  display: flex; flex-direction: column; min-width: 0; min-height: 520px;
 }
 .inbox-kosong {
   margin: auto; text-align: center; color: var(--text-mute); font-size: .92rem;
 }
-.inbox-aktif { display: flex; flex-direction: column; flex: 1; gap: 12px; }
+.inbox-kosong svg { opacity: .4; margin-bottom: 10px; }
+.inbox-kosong p { margin: 0; }
+.inbox-aktif { display: flex; flex-direction: column; flex: 1; gap: 12px; min-height: 0; }
 .inbox-aktif[hidden] { display: none; }
 .inbox-chat-head {
   display: flex; justify-content: space-between; align-items: center; gap: 12px;
-  padding-bottom: 12px; border-bottom: 1px solid var(--line);
+  padding-bottom: 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap;
 }
+.ib-judul { min-width: 0; }
+.ib-judul strong { font-size: .95rem; }
 .ib-meta { display: block; font-size: .78rem; color: var(--text-mute); margin-top: 2px; }
 .ib-aksi { display: flex; align-items: center; gap: 10px; flex: none; }
-@media (max-width: 900px) {
-  .inbox-grid { grid-template-columns: 1fr; }
-  .inbox-list { max-height: 300px; }
+/* Chat area mengisi sisa tinggi shell — bukan tinggi tetap 300px */
+.inbox-aktif .chat-area { flex: 1; min-height: 300px; }
+@media (max-width: 1100px) {
+  .inbox-shell { grid-template-columns: 300px 1fr; padding: 14px; }
+  .inbox-side { padding-right: 14px; }
+  .ib-item { padding: 10px; }
 }
-@media (max-width: 640px) {
-  .inbox-grid { grid-template-columns: 1fr; }
+@media (max-width: 900px) {
+  .inbox-shell { grid-template-columns: 1fr; }
+  .inbox-side { border-right: none; padding-right: 0; max-height: 340px; }
   .inbox-chat { min-height: 480px; }
 }
 

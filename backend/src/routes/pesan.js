@@ -58,6 +58,13 @@ router.post('/', async (req, res) => {
       if (!k.aktif) return res.status(403).json({ error: 'akun nonaktif' });
       pengirim = 'konselor';
       pengirimId = k.id;
+      // Auto-claim: konselor yang mengirim pesan pertama di tiket PN yang belum
+      // ditangani otomatis jadi penangannya — ngobrol = menangani (sama seperti
+      // alur minat). Tiket langsung pindah ke inbox konselor itu saja.
+      if (tiket.startsWith('PN-')) {
+        db.prepare('UPDATE pengaduan SET ditangani_oleh=$1 WHERE no_tiket=$2 AND ditangani_oleh IS NULL')
+          .run(k.id, tiket).catch(() => {});
+      }
     } else {
       return res.status(401).json({ error: 'token diperlukan' });
     }

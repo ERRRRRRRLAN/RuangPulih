@@ -2,7 +2,7 @@
 var $ = function (s) { return document.querySelector(s); };
 var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
 
-var state = { saya: null, tiketAktif: null, modeMinat: false, ws: null, inbox: [] };
+var state = { saya: null, tiketAktif: null, modeMinat: false, ws: null, inbox: [], inboxFilter: '', poolBelumDiambil: [] };
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -117,6 +117,13 @@ async function api(path, opts) {
   $('#mdFormChat').addEventListener('submit', kirimChat);
   $('#ibFormChat').addEventListener('submit', kirimChatInbox);
   $('#ibDetail').addEventListener('click', bukaDetailDariInbox);
+  $$('.inbox-filter-btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      state.inboxFilter = b.getAttribute('data-f') || '';
+      $$('.inbox-filter-btn').forEach(function (x) { x.classList.toggle('aktif', x === b); });
+      renderInbox();
+    });
+  });
   $('#mdInputChat').addEventListener('input', kirimTyping);
   siapkanNeoSelect();
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { $('#modalStatusRujuk').hidden = true; tutupModalRujuk(); tutupModal(); } });
@@ -770,6 +777,12 @@ async function muatInbox() {
   try {
     var data = await api('/api/dashboard/inbox');
     state.inbox = data.items || [];
+    // Pool tiket belum diambil siapa pun (ditangani_oleh NULL) — tampil di
+    // section terpisah di bawah list pribadi. Bisa diambil manual dari sini.
+    var pool = await api('/api/dashboard/antrian?limit=100');
+    state.poolBelumDiambil = (pool.items || []).filter(function (p) {
+      return p.ditangani_oleh == null;
+    });
     renderInbox();
   } catch (e) {
     var list = $('#inboxList');
@@ -780,18 +793,28 @@ async function muatInbox() {
 function renderInbox() {
   var list = $('#inboxList');
   if (!list) return;
-  var items = state.inbox || [];
-  $('#antrianKosong').hidden = items.length > 0;
-  // Grup per hari ("Hari ini" / "Kemarin" / tanggal) + dot status menggantikan
-  // badge pill — list panjang tetap tenang dan tak ada elemen menumpuk.
+  var semua = state.inbox || [];
+  $('#antrianKosong').hidden = semua.length > 0;
+
+  // Filter chip: semua / unread / darurat / selesai
+  var f = state.inboxFilter || '';
+  var items = semua.filter(function (it) {
+    if (f === 'unread') return !!it.unread;
+    if (f === 'darurat') return it.label === 'DARURAT';
+    if (f === 'selesai') return it.status === 'Selesai';
+    return true;
+  });
+
+  var count = $('#inboxCount');
+  if (count) {
+    var nUnread = semua.filter(function (x) { return x.unread; }).length;
+    count.textContent = nUnread ? nUnread + ' belum dibaca' : semua.length + ' tiket';
+  }
+
+  // Kartu list: dot + tiket + waktu (baris 1), preview + unread (baris 2).
+  // Program tag (PM) jadi baris tersendiri hanya kalau ada.
   var html = '';
-  var hariTerakhir = null;
   items.forEach(function (it) {
-    var grup = namaHari(it.pesan_ts);
-    if (grup && grup !== hariTerakhir) {
-      html += '<div class="ib-grup">' + esc(grup) + '</div>';
-      hariTerakhir = grup;
-    }
     var aktif = it.tiket === state.tiketAktif ? ' aktif' : '';
     var unread = it.unread ? '<span class="ib-unread" title="Pesan baru belum dibaca">1</span>' : '';
     var w = waktuPendek(it.pesan_ts);
@@ -809,20 +832,46 @@ function renderInbox() {
       tagProgram +
       '</button>';
   });
-  list.innerHTML = html;
+  list.innerHTML = html || '<p class="inbox-filter-kosong">Tidak ada tiket pada filter ini.</p>';
   $$('#inboxList .ib-item').forEach(function (b) {
     b.addEventListener('click', function () { bukaInboxChat(b.dataset.tiket); });
   });
+
+  // Section "Belum diambil": tiket di pool umum, belum ditangani siapa pun.
+  // Konselor bebas mengambil — first come first served, langsung masuk inboxnya.
+  var pool = state.poolBelumDiambil || [];
+  if (pool.length) {
+    html += '<div class="ib-grup">Belum diambil (' + pool.length + ')</div>';
+    pool.forEach(function (p) {
+      html += '<div class="ib-item ib-item-pool" data-tiket="' + esc(p.no_tiket) + '">' +
+        '<div class="ib-baris"><span class="ib-dot"></span>' +
+        '<strong>' + esc(p.no_tiket) + '</strong>' +
+        '<span class="ib-waktu">' + waktuPendek(p.dibuat) + '</span></div>' +
+        '<div class="ib-baris"><span class="ib-preview">' + esc(p.kategori || 'Laporan') + ' · belum ada yang menangani</span></div>' +
+        '<div class="ib-baris"><button type="button" class="btn-kecil ib-ambil" data-tiket="' + esc(p.no_tiket) + '">Ambil penanganan</button></div>' +
+        '</div>';
+    });
+  }
+  list.innerHTML = html || '<p class="inbox-filter-kosong">Tidak ada tiket pada filter ini.</p>';
+  $$('#inboxList .ib-item:not(.ib-item-pool)').forEach(function (b) {
+    b.addEventListener('click', function () { bukaInboxChat(b.dataset.tiket); });
+  });
+  $$('#inboxList .ib-ambil').forEach(function (b) {
+    b.addEventListener('click', function () { ambilDariPool(b.dataset.tiket); });
+  });
 }
 
-function namaHari(ts) {
-  var d = new Date(Number(ts));
-  if (isNaN(d.getTime())) return '';
-  var hariIni = new Date(); hariIni.setHours(0, 0, 0, 0);
-  var kemarin = new Date(Date.now() - 86400000);
-  if (d.getTime() >= hariIni.getTime()) return 'Hari ini';
-  if (d.getTime() >= kemarin.getTime()) return 'Kemarin';
-  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+// Ambil penanganan tiket dari pool (belum ditugaskan ke siapa pun).
+async function ambilDariPool(tiket) {
+  try {
+    await api('/api/dashboard/inbox/' + encodeURIComponent(tiket) + '/ambil', { method: 'POST' });
+    notifLive('Tiket ' + tiket + ' sekarang ditangani Anda.');
+    await muatInbox();
+    bukaInboxChat(tiket);
+  } catch (e) {
+    notifLive(e.message || 'Gagal mengambil tiket.');
+    muatInbox();
+  }
 }
 
 function waktuPendek(ts) {
