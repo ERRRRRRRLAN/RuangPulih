@@ -614,6 +614,7 @@ function bubbleChat(teks, arah, ts) {
   var area = $('#mdChat');
   var b = document.createElement('div');
   b.className = 'bubble ' + (arah === 'out' ? 'bubble-out' : 'bubble-in');
+  if (arah === 'out' || arah === 'in') b.setAttribute('data-dari', arah === 'out' ? 'Anda' : 'Pelapor');
   b.textContent = teks;
   if (ts != null) b.setAttribute('data-ts', String(ts));
   area.appendChild(b);

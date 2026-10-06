@@ -760,6 +760,11 @@ body.chat-terbuka .navbar { z-index: 50; }
   border-bottom-right-radius: 5px; box-shadow: var(--out-sm);
   animation: msgR var(--dur-lg) var(--ease) both;
 }
+/* Label peran — hover/tap untuk lihat siapa bicara (a11y + bantu bedakan arah) */
+.msg::before { content: attr(data-dari); display: block; font-size: .64rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .5; margin-bottom: 4px; }
+.msg.in::before  { color: var(--text-mute); }   /* KONSELOR di bubble masuk  */
+.msg.out::before { color: rgba(255,255,255,.6); } /* ANDA di bubble keluar */
+
 @keyframes msgL { from { opacity: 0; transform: translateX(-16px) scale(.96); } }
 @keyframes msgR { from { opacity: 0; transform: translateX(16px) scale(.96); } }
 .mtime { display: block; font-size: .66rem; opacity: .65; margin-top: 5px; font-weight: 600; }

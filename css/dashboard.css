@@ -300,6 +300,11 @@ body { background: var(--bg); color: var(--text); }
   box-shadow: var(--out-sm);
   border-bottom-right-radius: 5px;
 }
+/* Label peran di atas bubble dashboard (konselor = out, pelapor = in) */
+.bubble::before { content: attr(data-dari); display: block; font-size: .64rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .5; margin-bottom: 4px; }
+.bubble-in::before  { color: var(--text-mute); }   /* PELAPOR di bubble masuk  */
+.bubble-out::before { color: rgba(255,255,255,.6); } /* ANDA di bubble keluar */
+
 .bubble.typing { padding: 13px 16px; }
 .bubble-sistem {
   align-self: center; max-width: 92%; text-align: center;

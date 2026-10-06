@@ -782,6 +782,7 @@
   function bubble(teks, arah) {
     var div = document.createElement('div');
     div.className = 'msg ' + arah;
+    div.setAttribute('data-dari', arah === 'out' ? 'Anda' : 'Konselor');
     var p = document.createElement('p');
     p.textContent = teks;
     var t = document.createElement('span');
