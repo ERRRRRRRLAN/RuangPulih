@@ -81,6 +81,13 @@ body { background: var(--bg); color: var(--text); }
 .ib-grup:not(:first-child) { margin-top: 6px; }
 /* badge status di list: ukuran enak dibaca, tetap satu baris */
 .ib-item .badge { font-size: .72rem; padding: 5px 12px; white-space: nowrap; }
+/* List sempit (layar kecil / window sempit): ruang kiri dot jangan memakan tempat */
+@media (max-width: 1240px) {
+  .inbox-grid { grid-template-columns: 300px 1fr; }
+  .ib-item { padding: 12px 14px; }
+  .ib-item .badge { font-size: .68rem; padding: 4px 8px; }
+  .ib-preview { font-size: .76rem; }
+}
 .ib-tag-darurat { color: var(--danger); }
 .inbox-list { align-self: start; }
 .inbox-chat {
