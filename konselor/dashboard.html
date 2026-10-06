@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
-  <link rel="stylesheet" href="/css/dashboard.css?v=6">
+  <link rel="stylesheet" href="/css/dashboard.css?v=7">
 </head>
 <body>
   <header class="dash-top">
@@ -21,6 +21,7 @@
     </div>
     <nav class="dash-nav" aria-label="Navigasi dashboard">
       <button type="button" id="tabAntrian" class="dash-tab active">Inbox</button>
+      <button type="button" id="tabPool" class="dash-tab">Antrian<span class="tab-badge" id="poolCount" hidden></span></button>
       <button type="button" id="tabMinat" class="dash-tab">Minat Program</button>
       <button type="button" id="tabRujukan" class="dash-tab">Rujukan</button>
       <button type="button" id="tabAdmin" class="dash-tab" hidden>Admin</button>
@@ -81,6 +82,18 @@
         </div>
       </div>
       <p id="antrianKosong" class="dash-empty" hidden>Belum ada tiket.</p>
+    </section>
+
+    <!-- TAB ANTRIAN: pool tiket belum diambil siapa pun (dipisah dari inbox chat) -->
+    <section id="panelPool" class="dash-panel" hidden>
+      <div class="panel-head">
+        <h2>Antrian Belum Diambil</h2>
+        <p class="panel-sub">Tiket yang belum ditangani konselor mana pun. Ambil untuk memindahkannya ke inbox Anda.</p>
+      </div>
+      <div class="pool-wrap">
+        <div class="pool-list" id="poolList" aria-label="Tiket belum diambil"></div>
+        <p id="poolKosong" class="dash-empty" hidden>Tidak ada tiket baru yang menunggu penanganan.</p>
+      </div>
     </section>
 
     <!-- TAB MINAT PROGRAM -->
@@ -323,6 +336,6 @@
   <script src="/assets/supabase.js"></script>
   <script>if (typeof window.supabase === 'undefined') document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"><\/script>');</script>
   <script src="/js/realtime.js"></script>
-  <script src="/js/konselor-dashboard.js?v=6"></script>
+  <script src="/js/konselor-dashboard.js?v=7"></script>
 </body>
 </html>

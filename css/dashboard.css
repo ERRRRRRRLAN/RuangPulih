@@ -127,6 +127,22 @@ body { background: var(--bg); color: var(--text); }
   .inbox-chat { min-height: 480px; }
 }
 
+/* ---------- Pool antrian (tab terpisah) ---------- */
+.pool-wrap { display: flex; flex-direction: column; gap: 10px; }
+.pool-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px; align-items: start;
+}
+.pool-list .ib-item { display: block; }
+.pool-list .ib-ambil { margin-top: 2px; }
+.panel-sub { font-size: .84rem; color: var(--text-mute); margin: 2px 0 0; }
+.dash-tab { position: relative; }
+.pool-count-badge, .dash-tab .pool-count-badge {
+  display: inline-block; margin-left: 6px; min-width: 18px; text-align: center;
+  font-size: .68rem; font-weight: 800; padding: 1px 7px; border-radius: 99px;
+  background: var(--accent); color: var(--surface);
+}
+
 /* dropdown di dalam modal harus di atas konten modal */
 .modal-box .neo-select-panel { z-index: 5; }
 

@@ -100,6 +100,7 @@ async function api(path, opts) {
   $('#filterMinat').addEventListener('change', muatMinat);
   $('#filterRujukan').addEventListener('change', muatRujukan);
   $('#tabAntrian').addEventListener('click', function () { gantiTab('antrian'); });
+  $('#tabPool').addEventListener('click', function () { gantiTab('pool'); });
   $('#tabMinat').addEventListener('click', function () { gantiTab('minat'); });
   $('#tabRujukan').addEventListener('click', function () { gantiTab('rujukan'); });
   $('#mdAmbil').addEventListener('click', function () {
@@ -144,14 +145,17 @@ async function logout() {
 
 function gantiTab(t) {
   $('#tabAntrian').classList.toggle('active', t === 'antrian');
+  $('#tabPool').classList.toggle('active', t === 'pool');
   $('#tabMinat').classList.toggle('active', t === 'minat');
   $('#tabRujukan').classList.toggle('active', t === 'rujukan');
   $('#tabAdmin').classList.toggle('active', t === 'admin');
   $('#panelAntrian').hidden = t !== 'antrian';
+  $('#panelPool').hidden = t !== 'pool';
   $('#panelMinat').hidden = t !== 'minat';
   $('#panelRujukan').hidden = t !== 'rujukan';
   $('#panelAdmin').hidden = t !== 'admin';
   if (t === 'antrian') muatInbox();
+  if (t === 'pool') { muatInbox(); }
   if (t === 'minat') muatMinat();
   if (t === 'rujukan') muatRujukan();
   if (t === 'admin') muatAdmin();
@@ -784,6 +788,13 @@ async function muatInbox() {
       return p.ditangani_oleh == null;
     });
     renderInbox();
+    renderPool();
+    var pc = $('#poolCount');
+    if (pc) {
+      var n = (state.poolBelumDiambil || []).length;
+      pc.hidden = n === 0;
+      pc.textContent = n;
+    }
   } catch (e) {
     var list = $('#inboxList');
     if (list) list.innerHTML = '<p class="dash-empty">Gagal memuat inbox: ' + esc(e.message) + '</p>';
@@ -836,27 +847,28 @@ function renderInbox() {
   $$('#inboxList .ib-item').forEach(function (b) {
     b.addEventListener('click', function () { bukaInboxChat(b.dataset.tiket); });
   });
+}
 
-  // Section "Belum diambil": tiket di pool umum, belum ditangani siapa pun.
-  // Konselor bebas mengambil — first come first served, langsung masuk inboxnya.
+// Tab Antrian: pool tiket belum diambil siapa pun, halaman terpisah dari inbox.
+function renderPool() {
+  var wrap = $('#poolList');
+  if (!wrap) return;
   var pool = state.poolBelumDiambil || [];
-  if (pool.length) {
-    html += '<div class="ib-grup">Belum diambil (' + pool.length + ')</div>';
-    pool.forEach(function (p) {
-      html += '<div class="ib-item ib-item-pool" data-tiket="' + esc(p.no_tiket) + '">' +
-        '<div class="ib-baris"><span class="ib-dot"></span>' +
-        '<strong>' + esc(p.no_tiket) + '</strong>' +
-        '<span class="ib-waktu">' + waktuPendek(p.dibuat) + '</span></div>' +
-        '<div class="ib-baris"><span class="ib-preview">' + esc(p.kategori || 'Laporan') + ' · belum ada yang menangani</span></div>' +
-        '<div class="ib-baris"><button type="button" class="btn-kecil ib-ambil" data-tiket="' + esc(p.no_tiket) + '">Ambil penanganan</button></div>' +
-        '</div>';
-    });
-  }
-  list.innerHTML = html || '<p class="inbox-filter-kosong">Tidak ada tiket pada filter ini.</p>';
-  $$('#inboxList .ib-item:not(.ib-item-pool)').forEach(function (b) {
-    b.addEventListener('click', function () { bukaInboxChat(b.dataset.tiket); });
+  $('#poolKosong').hidden = pool.length > 0;
+  var html = '';
+  pool.forEach(function (p) {
+    var darurat = p.status === 'Diterima' && p.label === 'DARURAT'
+      ? '<span class="ib-tag ib-tag-darurat">Darurat</span>' : '';
+    html += '<div class="ib-item ib-item-pool" data-tiket="' + esc(p.no_tiket) + '">' +
+      '<div class="ib-baris"><span class="ib-dot"></span>' +
+      '<strong>' + esc(p.no_tiket) + '</strong>' + darurat +
+      '<span class="ib-waktu">' + waktuPendek(p.dibuat) + '</span></div>' +
+      '<div class="ib-baris"><span class="ib-preview">' + esc(p.kategori || 'Laporan') + ' · untuk ' + esc(p.untuk || '-') + '</span></div>' +
+      '<div class="ib-baris"><button type="button" class="btn-kecil ib-ambil" data-tiket="' + esc(p.no_tiket) + '">Ambil penanganan</button></div>' +
+      '</div>';
   });
-  $$('#inboxList .ib-ambil').forEach(function (b) {
+  wrap.innerHTML = html;
+  $$('#poolList .ib-ambil').forEach(function (b) {
     b.addEventListener('click', function () { ambilDariPool(b.dataset.tiket); });
   });
 }
