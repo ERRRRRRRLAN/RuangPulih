@@ -251,8 +251,8 @@ button { font: inherit; color: inherit; }
   box-shadow: var(--out-sm);
   transition: transform var(--dur-sm) var(--ease-back), box-shadow var(--dur-sm) var(--ease), color var(--dur) var(--ease);
 }
-.btn-icon:hover { transform: scale(1.08); box-shadow: var(--out); color: var(--text); }
-.btn-icon:active { transform: scale(.92); box-shadow: var(--in); }
+.btn-icon:hover { transform: scale(1.05); box-shadow: var(--out-sm); color: var(--text); }
+.btn-icon:active { transform: scale(.94); box-shadow: var(--in); }
 .theme-toggle .icon-sun { display: none; }
 [data-theme="dark"] .theme-toggle .icon-sun { display: block; }
 [data-theme="dark"] .theme-toggle .icon-moon { display: none; }
@@ -644,8 +644,8 @@ button { font: inherit; color: inherit; }
 /* Saat modal chat terbuka, FAB morph menjadi tombol "tutup" — tidak
    lagi menumpuk konten modal. */
 .fab-chat.terbuka { z-index: 63; }
-.fab-chat:hover { transform: scale(1.07); }
-.fab-chat:active { transform: scale(.93); box-shadow: var(--in); }
+.fab-chat:hover { transform: scale(1.05); box-shadow: 0 12px 30px rgba(14,60,66,.4), var(--out); }
+.fab-chat:active { transform: scale(.95); box-shadow: var(--in); }
 .fab-chat .fab-tutup { display: none; }
 .fab-chat.terbuka .fab-ikon { display: none; }
 .fab-chat.terbuka .fab-tutup { display: block; }
@@ -699,7 +699,7 @@ body.chat-terbuka .navbar { z-index: 50; }
   background: var(--surface-2); box-shadow: var(--in);
   transition: box-shadow var(--dur-sm) var(--ease), color var(--dur-sm) var(--ease);
 }
-.chat-header .btn-icon:hover { color: var(--text); box-shadow: var(--out-sm); }
+.chat-header .btn-icon:hover { color: var(--text); box-shadow: var(--out-sm); transform: none; }
 .chat-header-aksi { display: flex; gap: 6px; align-items: center; }
 
 .chat-gate { flex: 1; padding: 20px 18px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; justify-content: center; }
@@ -715,7 +715,8 @@ body.chat-terbuka .navbar { z-index: 50; }
   position: absolute; right: 6px; display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; border-radius: 8px; cursor: pointer; flex: none;
 }
-.tiket-salin:hover { background: var(--hover, rgba(127,127,127,.14)); }
+/* Hover tenang: tombol kecil di dalam input tidak boleh melompat/lompat shadow */
+.tiket-salin:hover { background: var(--hover, rgba(127,127,127,.14)); transform: none; box-shadow: none; }
 .tiket-salin[hidden] { display: none; }
 .chat-header-aksi .tiket-salin { position: static; }
 
@@ -812,8 +813,8 @@ body.chat-terbuka .navbar { z-index: 50; }
 }
 .chat-header .btn-send { background: var(--accent); color: var(--on-accent); }
 .chat-header .btn-send:hover { background: var(--accent-2); }
-.btn-send:hover { transform: scale(1.08) rotate(-3deg); box-shadow: var(--out); }
-.btn-send:active { transform: scale(.9); box-shadow: var(--in); }
+.btn-send:hover { transform: scale(1.05); box-shadow: var(--out); }
+.btn-send:active { transform: scale(.92); box-shadow: var(--in); }
 .btn-send:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 
 @media (max-width: 560px) {

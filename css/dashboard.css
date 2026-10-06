@@ -204,7 +204,7 @@ body { background: var(--bg); color: var(--text); }
   box-shadow: var(--out-sm);
   transition: transform var(--dur-sm) var(--ease-back), box-shadow var(--dur-sm) var(--ease), filter var(--dur-sm) var(--ease);
 }
-.btn-buka:hover, .btn-kecil:hover { transform: translateY(-2px) scale(1.02); filter: brightness(1.08); box-shadow: var(--out); }
+.btn-buka:hover, .btn-kecil:hover { transform: translateY(-1px); box-shadow: var(--out); }
 .btn-buka:active, .btn-kecil:active { transform: translateY(0) scale(.97); box-shadow: var(--in); }
 
 .btn-buka { position: relative; }
