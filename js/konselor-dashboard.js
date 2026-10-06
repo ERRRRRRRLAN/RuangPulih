@@ -784,15 +784,18 @@ function renderInbox() {
   $('#antrianKosong').hidden = items.length > 0;
   list.innerHTML = items.map(function (it) {
     var aktif = it.tiket === state.tiketAktif ? ' aktif' : '';
-    var badgeUnread = it.unread ? '<span class="ib-unread">1</span>' : '';
+    var unread = it.unread ? '<span class="ib-unread" title="Pesan baru belum dibaca">1</span>' : '';
     var w = waktuPendek(it.pesan_ts);
     var dari = it.dari === 'konselor' ? 'Anda: ' : '';
+    var tag = it.label
+      ? ' <span class="ib-tag' + (it.label === 'DARURAT' ? ' ib-tag-darurat' : '') + '">' + esc(it.label) + '</span>'
+      : '';
+    // 3 baris tetap: (tiket+time) / (status+tag) / (preview+unread) —
+    // tak tergantung panjang teks status, susunan tak pernah berantakan.
     return '<button type="button" class="ib-item' + aktif + '" data-tiket="' + esc(it.tiket) + '">' +
-      '<div class="ib-baris1"><strong>' + esc(it.tiket) + '</strong>' +
-      (it.label ? ' <span class="ib-tag' + (it.label === 'DARURAT' ? ' ib-tag-darurat' : '') + '">' + esc(it.label) + '</span>' : '') +
-      badge(it.status) +
-      '<span class="ib-waktu">' + w + '</span></div>' +
-      '<div class="ib-baris2"><span class="ib-preview">' + esc(dari + it.preview) + '</span>' + badgeUnread + '</div>' +
+      '<div class="ib-baris"><strong>' + esc(it.tiket) + '</strong><span class="ib-waktu">' + w + '</span></div>' +
+      '<div class="ib-baris">' + badge(it.status) + tag + '</div>' +
+      '<div class="ib-baris"><span class="ib-preview">' + esc(dari + it.preview) + '</span>' + unread + '</div>' +
       '</button>';
   }).join('');
   $$('#inboxList .ib-item').forEach(function (b) {

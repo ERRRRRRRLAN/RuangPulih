@@ -15,29 +15,30 @@ body { background: var(--bg); color: var(--text); }
 
 /* ---------- INBOX dua kolom ---------- */
 .inbox-grid {
-  display: grid; grid-template-columns: 320px 1fr; gap: 18px; align-items: stretch;
+  display: grid; grid-template-columns: 340px 1fr; gap: 18px; align-items: stretch;
   min-height: 480px;
 }
 .inbox-list {
-  display: flex; flex-direction: column; gap: 8px; max-height: 640px; overflow-y: auto;
-  padding: 4px;
+  display: flex; flex-direction: column; gap: 10px; max-height: 640px; overflow-y: auto;
+  padding: 6px; /* ruang untuk shadow item — shadow tak terpotong scroll container */
 }
 .ib-item {
   display: block; width: 100%; text-align: left; cursor: pointer;
   background: var(--surface); border: none; border-radius: var(--r-md);
   padding: 12px 14px; box-shadow: var(--out-sm);
   font: inherit; color: var(--text);
-  transition: box-shadow var(--dur-sm) var(--ease), transform var(--dur-sm) var(--ease);
+  transition: box-shadow var(--dur-sm) var(--ease);
 }
-.ib-item:hover { transform: translateY(-1px); }
+.ib-item:hover { box-shadow: var(--out); }
 .ib-item.aktif { box-shadow: var(--in); }
 .ib-item.aktif strong { color: var(--accent); }
-.ib-baris1 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.ib-baris1 strong { font-size: .86rem; letter-spacing: .02em; }
-.ib-waktu { margin-left: auto; font-size: .72rem; color: var(--text-mute); }
-.ib-baris2 { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+/* 3 baris tetap: susunan tidak berubah oleh panjang badge/status */
+.ib-baris { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ib-baris + .ib-baris { margin-top: 5px; }
+.ib-baris strong { font-size: .88rem; letter-spacing: .02em; }
+.ib-waktu { margin-left: auto; flex: none; font-size: .72rem; color: var(--text-mute); }
 .ib-preview {
-  flex: 1; font-size: .8rem; color: var(--text-mute);
+  flex: 1; min-width: 0; font-size: .8rem; color: var(--text-mute);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .ib-unread {
@@ -47,13 +48,13 @@ body { background: var(--bg); color: var(--text); }
   font-size: .7rem; font-weight: 800;
 }
 .ib-tag {
-  font-size: .62rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+  flex: none; font-size: .62rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
   padding: 2px 7px; border-radius: 99px; color: var(--text-mute);
   background: var(--surface-2); box-shadow: var(--in);
 }
+/* badge status di list: kecilkan biar muat di kolom 340px tanpa meluber */
+.ib-item .badge { font-size: .68rem; padding: 3px 9px; white-space: nowrap; }
 .ib-tag-darurat { color: var(--danger); }
-.ib-meta { font-size: .78rem; color: var(--text-mute); }
-.ib-aksi { display: flex; align-items: center; gap: 10px; }
 .inbox-list { align-self: start; }
 .inbox-chat {
   background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--out);
@@ -69,8 +70,7 @@ body { background: var(--bg); color: var(--text); }
   padding-bottom: 12px; border-bottom: 1px solid var(--line);
 }
 .ib-meta { display: block; font-size: .78rem; color: var(--text-mute); margin-top: 2px; }
-.ib-aksi { display: flex; align-items: center; gap: 10px; }
-.ib-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-2); display: inline-block; }
+.ib-aksi { display: flex; align-items: center; gap: 10px; flex: none; }
 @media (max-width: 900px) {
   .inbox-grid { grid-template-columns: 1fr; }
   .inbox-list { max-height: 300px; }
