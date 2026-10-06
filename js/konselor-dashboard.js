@@ -782,28 +782,48 @@ function renderInbox() {
   if (!list) return;
   var items = state.inbox || [];
   $('#antrianKosong').hidden = items.length > 0;
-  list.innerHTML = items.map(function (it) {
+  // Grup per hari ("Hari ini" / "Kemarin" / tanggal) + dot status menggantikan
+  // badge pill — list panjang tetap tenang dan tak ada elemen menumpuk.
+  var html = '';
+  var hariTerakhir = null;
+  items.forEach(function (it) {
+    var grup = namaHari(it.pesan_ts);
+    if (grup && grup !== hariTerakhir) {
+      html += '<div class="ib-grup">' + esc(grup) + '</div>';
+      hariTerakhir = grup;
+    }
     var aktif = it.tiket === state.tiketAktif ? ' aktif' : '';
     var unread = it.unread ? '<span class="ib-unread" title="Pesan baru belum dibaca">1</span>' : '';
     var w = waktuPendek(it.pesan_ts);
     var dari = it.dari === 'konselor' ? 'Anda: ' : '';
-    var tag = it.label
-      ? ' <span class="ib-tag' + (it.label === 'DARURAT' ? ' ib-tag-darurat' : '') + '">' + esc(it.label) + '</span>'
+    var dotStatus = '<span class="ib-dot" title="' + esc(it.status || '') + '"></span>';
+    var tagDarurat = it.label === 'DARURAT' ? '<span class="ib-tag ib-tag-darurat">Darurat</span>' : '';
+    var tagProgram = (it.label && it.label !== 'DARURAT')
+      ? '<div class="ib-baris"><span class="ib-tag">' + esc(it.label) + '</span></div>'
       : '';
-    // 3 baris tetap: (tiket+time) / (status+tag) / (preview+unread) —
-    // tak tergantung panjang teks status, susunan tak pernah berantakan.
-    return '<button type="button" class="ib-item' + aktif + '" data-tiket="' + esc(it.tiket) + '">' +
-      '<div class="ib-baris"><strong>' + esc(it.tiket) + '</strong><span class="ib-waktu">' + w + '</span></div>' +
-      '<div class="ib-baris">' + badge(it.status) + tag + '</div>' +
+    html += '<button type="button" class="ib-item' + aktif + '" data-tiket="' + esc(it.tiket) + '">' +
+      '<div class="ib-baris">' + dotStatus +
+      '<strong>' + esc(it.tiket) + '</strong>' + tagDarurat +
+      '<span class="ib-waktu">' + w + '</span></div>' +
       '<div class="ib-baris"><span class="ib-preview">' + esc(dari + it.preview) + '</span>' + unread + '</div>' +
+      tagProgram +
       '</button>';
-  }).join('');
+  });
+  list.innerHTML = html;
   $$('#inboxList .ib-item').forEach(function (b) {
     b.addEventListener('click', function () { bukaInboxChat(b.dataset.tiket); });
   });
 }
 
-function badgeUnreadHtml(n) { return n ? '<span class="ib-unread">' + n + '</span>' : ''; }
+function namaHari(ts) {
+  var d = new Date(Number(ts));
+  if (isNaN(d.getTime())) return '';
+  var hariIni = new Date(); hariIni.setHours(0, 0, 0, 0);
+  var kemarin = new Date(Date.now() - 86400000);
+  if (d.getTime() >= hariIni.getTime()) return 'Hari ini';
+  if (d.getTime() >= kemarin.getTime()) return 'Kemarin';
+  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+}
 
 function waktuPendek(ts) {
   var d = new Date(Number(ts));

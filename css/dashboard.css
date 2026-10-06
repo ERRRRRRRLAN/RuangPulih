@@ -53,6 +53,24 @@ body { background: var(--bg); color: var(--text); }
   padding: 4px 10px; border-radius: 99px; color: var(--text-mute);
   background: var(--surface-2); box-shadow: var(--in);
 }
+/* Dot status: warna ringkas per status — menggantikan badge pill yang menumpuk */
+.ib-dot {
+  flex: none; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--text-mute); opacity: .55;
+}
+.ib-dot[title="Diterima"] { background: var(--accent-2); opacity: 1; }
+.ib-dot[title="Ditinjau"] { background: #d9a441; opacity: 1; }
+.ib-dot[title="Dalam Penanganan"] { background: var(--accent); opacity: 1; }
+.ib-dot[title="Selesai"] { background: var(--text-mute); opacity: .4; }
+.ib-dot[title="Baru"] { background: var(--accent-2); opacity: 1; }
+.ib-dot[title="Dihubungi"] { background: #d9a441; opacity: 1; }
+.ib-dot[title="Terdaftar"] { background: var(--accent); opacity: 1; }
+/* Header grup hari */
+.ib-grup {
+  font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-mute); padding: 10px 6px 2px;
+}
+.ib-grup:not(:first-child) { margin-top: 6px; }
 /* badge status di list: ukuran enak dibaca, tetap satu baris */
 .ib-item .badge { font-size: .72rem; padding: 5px 12px; white-space: nowrap; }
 .ib-tag-darurat { color: var(--danger); }
