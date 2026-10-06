@@ -38,24 +38,28 @@ router.post('/', async (req, res) => {
 
     let pengirim, pengirimId;
 
-    // Prioritas: konselor (cookie session JWT) > pelapor anonim (anon-token)
+    // Anon-token eksplisit (header) MENANG atas cookie sisa. Kalau konselor
+    // pernah login di browser yang sama, cookie ikut terkirim saat pelapor
+    // chat di modal publik — tanpa ini pesan pelapor tersimpan 'konselor'.
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
     const sesi = req.session || null;
-    if (sesi && sesi.id) {
+
+    if (token) {
+      // Pelapor anonim: anon-token JWT berisi tiket yang mereka pegang
+      let payload;
+      try { payload = verifikasiJWT(token); } catch { return res.status(401).json({ error: 'token tidak valid' }); }
+      if (payload.tiket !== tiket) return res.status(403).json({ error: 'tidak diizinkan' });
+      pengirim = 'user';
+      pengirimId = null;
+    } else if (sesi && sesi.id) {
       const k = await db.prepare('SELECT id,aktif FROM konselor WHERE id=$1').get(sesi.id);
       if (!k) return res.status(401).json({ error: 'akun tidak ditemukan' });
       if (!k.aktif) return res.status(403).json({ error: 'akun nonaktif' });
       pengirim = 'konselor';
       pengirimId = k.id;
     } else {
-      // Pelapor anonim: anon-token JWT berisi tiket yang mereka pegang
-      const auth = req.headers.authorization || '';
-      const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-      if (!token) return res.status(401).json({ error: 'token diperlukan' });
-      let payload;
-      try { payload = verifikasiJWT(token); } catch { return res.status(401).json({ error: 'token tidak valid' }); }
-      if (payload.tiket !== tiket) return res.status(403).json({ error: 'tidak diizinkan' });
-      pengirim = 'user';
-      pengirimId = null;
+      return res.status(401).json({ error: 'token diperlukan' });
     }
 
     const sekarang = Date.now();
@@ -87,17 +91,17 @@ router.get('/', async (req, res) => {
     const tiket = req.query.tiket;
     if (!tiket) return res.status(400).json({ error: 'tiket wajib diisi' });
 
+    // Sama seperti POST: anon-token eksplisit menang atas cookie sisa.
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
     const sesi = req.session || null;
-    if (sesi && sesi.id) {
-      // konselor boleh baca semua tiket
-    } else {
-      const auth = req.headers.authorization || '';
-      const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-      if (!token) return res.status(401).json({ error: 'token diperlukan' });
+    if (token) {
       try {
         const payload = verifikasiJWT(token);
         if (payload.tiket !== tiket) return res.status(403).json({ error: 'tidak diizinkan' });
       } catch { return res.status(401).json({ error: 'token tidak valid' }); }
+    } else if (!(sesi && sesi.id)) {
+      return res.status(401).json({ error: 'token diperlukan' });
     }
 
     const rows = await db.prepare('SELECT pengirim, isi_enc, dibuat FROM pesan WHERE no_tiket=$1 ORDER BY dibuat ASC').all(tiket);
