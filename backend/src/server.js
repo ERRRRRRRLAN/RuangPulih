@@ -30,6 +30,7 @@ app.use('/api/layanan', require('./routes/layanan'));
 app.use('/api/rujukan', require('./routes/rujukan'));
 app.use('/api/pesan', require('./routes/pesan'));
 app.use('/api/telegram', require('./routes/telegram'));
+app.use('/api/dashboard', require('./routes/inbox')); // inbox terpisah file, rute sama
 
 // Frontend statis (root repo) — melayani index.html, css/, js/, konselor/
 const ROOT = path.resolve(__dirname, '..', '..');

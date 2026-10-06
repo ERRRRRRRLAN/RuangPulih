@@ -2,7 +2,7 @@
 var $ = function (s) { return document.querySelector(s); };
 var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
 
-var state = { saya: null, tiketAktif: null, modeMinat: false, ws: null };
+var state = { saya: null, tiketAktif: null, modeMinat: false, ws: null, inbox: [] };
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -46,7 +46,7 @@ function siapkanSatuNeoSelect(ns) {
     e.stopPropagation();
     sync(e.currentTarget.getAttribute('data-value'));
     setOpen(false);
-    if (hidden && hidden.id === 'filterStatus') muatAntrian();
+    if (hidden && hidden.id === 'filterStatus') muatInbox();
   }
   function onDoc() { setOpen(false); }
 
@@ -94,10 +94,9 @@ async function api(path, opts) {
   }
   if (state.saya.peran === 'admin') $('#tabAdmin').hidden = false;
   muatStatistik();
-  muatAntrian();
+  muatInbox();
   sambungDashboardWS();
   $('#btnLogout').addEventListener('click', logout);
-  $('#filterStatus').addEventListener('change', muatAntrian);
   $('#filterMinat').addEventListener('change', muatMinat);
   $('#filterRujukan').addEventListener('change', muatRujukan);
   $('#tabAntrian').addEventListener('click', function () { gantiTab('antrian'); });
@@ -116,6 +115,8 @@ async function api(path, opts) {
   $('#msrSimpan').addEventListener('click', simpanStatusRujukan);
   $('#formRujuk').addEventListener('submit', kirimRujukan);
   $('#mdFormChat').addEventListener('submit', kirimChat);
+  $('#ibFormChat').addEventListener('submit', kirimChatInbox);
+  $('#ibDetail').addEventListener('click', bukaDetailDariInbox);
   $('#mdInputChat').addEventListener('input', kirimTyping);
   siapkanNeoSelect();
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { $('#modalStatusRujuk').hidden = true; tutupModalRujuk(); tutupModal(); } });
@@ -143,7 +144,7 @@ function gantiTab(t) {
   $('#panelMinat').hidden = t !== 'minat';
   $('#panelRujukan').hidden = t !== 'rujukan';
   $('#panelAdmin').hidden = t !== 'admin';
-  if (t === 'antrian') muatAntrian();
+  if (t === 'antrian') muatInbox();
   if (t === 'minat') muatMinat();
   if (t === 'rujukan') muatRujukan();
   if (t === 'admin') muatAdmin();
@@ -163,37 +164,6 @@ async function muatStatistik() {
 }
 
 /* ---------- antrian ---------- */
-async function muatAntrian() {
-  var status = $('#filterStatus').value;
-  var url = '/api/dashboard/antrian';
-  if (status) url += '?status=' + encodeURIComponent(status);
-  try {
-    var data = await api(url);
-    var tbody = $('#bodyAntrian');
-    $('#antrianKosong').hidden = data.items.length > 0;
-    tbody.innerHTML = data.items.map(function (p) {
-      return '<tr data-tiket="' + esc(p.no_tiket) + '" tabindex="0">' +
-        '<td><strong>' + esc(p.no_tiket) + '</strong>' + (p.dibaca ? '' : ' <span class="titik-baru" title="Baru"></span>') + (p.darurat ? ' <span class="tag tag-darurat">DARURAT</span>' : '') + '</td>' +
-        '<td>' + esc(p.untuk) + '</td>' +
-        '<td>' + esc(p.kategori) + '</td>' +
-        '<td>' + badge(p.status) + '</td>' +
-        '<td>' + waktu(p.dibuat) + '</td>' +
-        '<td><button class="btn-buka" data-tiket="' + esc(p.no_tiket) + '">Buka</button></td>' +
-        '</tr>';
-    }).join('');
-    $$('#bodyAntrian .btn-buka').forEach(function (b) {
-      b.addEventListener('click', function (e) { e.stopPropagation(); bukaDetail(b.dataset.tiket); });
-    });
-    // seluruh baris juga bisa diklik (cursor pointer sudah diset di CSS)
-    $$('#bodyAntrian tr[data-tiket]').forEach(function (tr) {
-      tr.addEventListener('click', function () { bukaDetail(tr.dataset.tiket); });
-    });
-  } catch (e) {
-    $('#antrianKosong').hidden = false;
-    $('#antrianKosong').textContent = 'Gagal memuat antrian: ' + e.message;
-  }
-}
-
 /* ---------- detail tiket ---------- */
 async function bukaDetail(tiket) {
   state.tiketAktif = tiket;
@@ -462,7 +432,7 @@ function tutupModal() {
   state.tiketAktif = null;
   state.modeMinat = false;
   pulihkanOpsiStatus();
-  if (!$('#panelMinat').hidden) muatMinat(); else muatAntrian();
+  if (!$('#panelMinat').hidden) muatMinat(); else muatInbox();
 }
 
 // Modal detail dipakai bersama oleh pengaduan & minat. Opsi status minat
@@ -514,12 +484,13 @@ function sambungDashboardWS() {
   window.RuangPulihRT.subscribe(null, function (ev) {
     if (ev.tipe === 'pengaduan_baru') {
       muatStatistik();
-      muatAntrian();
+      muatInbox();
       notifLive((ev.data && ev.data.darurat ? 'Laporan darurat baru' : 'Laporan baru') + ': ' + ev.no_tiket);
     } else if (ev.tipe === 'pesan') {
-      // pelapor mengirim chat di tiket lain → tandai baris belum dibaca
+      // pesan baru di tiket mana pun → refresh list inbox
+      muatInbox();
+      muatStatistik();
       if (ev.no_tiket !== state.tiketAktif) {
-        muatAntrian();
         notifLive('Chat baru di ' + ev.no_tiket);
       }
     }
@@ -754,7 +725,7 @@ async function ubahStatusChat(mode, tiket, nilai) {
     var hid = $('#mdStatus');
     if (hid) hid.value = nilai;
     notifLive('Status ' + tiket + ' → ' + nilai);
-    if (mode === 'minat') muatMinat(); else { muatAntrian(); muatStatistik(); }
+    if (mode === 'minat') muatMinat(); else { muatInbox(); muatStatistik(); }
   } catch (e) {
     bubbleChat('Gagal ubah status: ' + e.message, 'in');
   }
@@ -781,7 +752,187 @@ async function ubahProgramChat(tiket, program) {
   }
 }
 
-/* ---------- BALASAN CEPAT KONSELOR ---------- */
+/* ---------- INBOX: daftar tiket + chat dua kolom ---------- */
+// Menggantikan tabel antrian: semua tiket terlihat, klik = langsung chat.
+// Sumber: GET /api/dashboard/inbox (agregat pesan terakhir + unread).
+var inboxCache = [];
+
+function waktuPendek(ts) {
+  var d = new Date(Number(ts));
+  if (isNaN(d.getTime())) return '';
+  var hariIni = new Date().toDateString() === d.toDateString();
+  return hariIni
+    ? d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+}
+
+async function muatInbox() {
+  try {
+    var data = await api('/api/dashboard/inbox');
+    state.inbox = data.items || [];
+    renderInbox();
+  } catch (e) {
+    var list = $('#inboxList');
+    if (list) list.innerHTML = '<p class="dash-empty">Gagal memuat inbox: ' + esc(e.message) + '</p>';
+  }
+}
+
+function renderInbox() {
+  var list = $('#inboxList');
+  if (!list) return;
+  var items = state.inbox || [];
+  $('#antrianKosong').hidden = items.length > 0;
+  list.innerHTML = items.map(function (it) {
+    var aktif = it.tiket === state.tiketAktif ? ' aktif' : '';
+    var badgeUnread = it.unread ? '<span class="ib-unread">1</span>' : '';
+    var w = waktuPendek(it.pesan_ts);
+    var dari = it.dari === 'konselor' ? 'Anda: ' : '';
+    return '<button type="button" class="ib-item' + aktif + '" data-tiket="' + esc(it.tiket) + '">' +
+      '<div class="ib-baris1"><strong>' + esc(it.tiket) + '</strong>' +
+      (it.label ? ' <span class="ib-tag' + (it.label === 'DARURAT' ? ' ib-tag-darurat' : '') + '">' + esc(it.label) + '</span>' : '') +
+      badge(it.status) +
+      '<span class="ib-waktu">' + w + '</span></div>' +
+      '<div class="ib-baris2"><span class="ib-preview">' + esc(dari + it.preview) + '</span>' + badgeUnread + '</div>' +
+      '</button>';
+  }).join('');
+  $$('#inboxList .ib-item').forEach(function (b) {
+    b.addEventListener('click', function () { bukaInboxChat(b.dataset.tiket); });
+  });
+}
+
+function badgeUnreadHtml(n) { return n ? '<span class="ib-unread">' + n + '</span>' : ''; }
+
+function waktuPendek(ts) {
+  var d = new Date(Number(ts));
+  if (isNaN(d.getTime())) return '';
+  var hariIni = new Date().toDateString() === d.toDateString();
+  return hariIni
+    ? d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+}
+
+async function bukaInboxChat(tiket) {
+  state.tiketAktif = tiket;
+  state.modeMinat = tiket.indexOf('PM-') === 0;
+  $('#inboxKosong').hidden = true;
+  $('#inboxAktif').hidden = false;
+  $('#ibTiket').textContent = tiket;
+  $('#ibChat').innerHTML = '';
+  var it = (state.inbox || []).find(function (x) { return x.tiket === tiket; });
+  $('#ibMeta').textContent = it ? (it.jenis === 'PM' ? 'Minat program' + (it.label ? ' · ' + it.label : '') : 'Laporan') + (it.penangan ? ' · ' + it.penangan : ' · belum ditugaskan') : '';
+  $('#ibStatus').innerHTML = it ? badge(it.status) : '';
+  // Quick replies sesuai konteks
+  var mode = state.modeMinat ? 'minat' : (it && it.label === 'DARURAT' ? 'darurat' : 'biasa');
+  isiQuickInbox(mode);
+  // tandai dibaca
+  try { await api('/api/dashboard/inbox/' + encodeURIComponent(tiket) + '/baca', { method: 'POST' }); } catch (e2) { /* non-kritis */ }
+  renderInbox();
+  sambungWSInbox(tiket);
+}
+
+function sambungWSInbox(tiket) {
+  if (!window.RuangPulihRT) { bubbleInbox('Realtime belum siap, muat ulang halaman.', 'in'); return; }
+  window.RuangPulihRT.ambilHistory(tiket).then(function (pesan) {
+    $('#ibChat').innerHTML = '';
+    (pesan || []).forEach(function (p) {
+      bubbleInbox(p.isi, p.pengirim === 'user' ? 'in' : 'out', p.dibuat);
+    });
+  }).catch(function () { bubbleInbox('Gagal memuat riwayat chat.', 'in'); });
+
+  window.RuangPulihRT.subscribe(tiket, function (ev) {
+    if (ev.tipe === 'typing') {
+      if (ev.dari === 'user') tampilkanMengetikInbox();
+      return;
+    }
+    if (ev.tipe === 'baca') return;
+    if (ev.tipe === 'pesan') {
+      if (ev.no_tiket !== state.tiketAktif) { muatInbox(); return; }
+      window.RuangPulihRT.ambilHistory(tiket).then(function (pesan) {
+        $('#ibChat').innerHTML = '';
+        (pesan || []).forEach(function (p) {
+          bubbleInbox(p.isi, p.pengirim === 'user' ? 'in' : 'out', p.dibuat);
+        });
+        hapusMengetikInbox();
+      }).catch(function () { /* coba lagi nanti */ });
+      muatInbox();
+      return;
+    }
+    if (ev.tipe === 'rujukan' || ev.tipe === 'status') {
+      if (ev.no_tiket !== state.tiketAktif) return;
+      bubbleInbox(ev.tipe === 'rujukan' ? 'Rujukan dibuat: ' + ((ev.data || {}).tujuan || '') : 'Status diperbarui.', 'in');
+    }
+  });
+}
+
+function bubbleInbox(teks, arah, ts) {
+  var area = $('#ibChat');
+  if (!area) return;
+  var b = document.createElement('div');
+  b.className = 'bubble ' + (arah === 'out' ? 'bubble-out' : 'bubble-in');
+  if (arah === 'out' || arah === 'in') b.setAttribute('data-dari', arah === 'out' ? 'Anda' : 'Pelapor');
+  b.textContent = teks;
+  if (ts != null) b.setAttribute('data-ts', String(ts));
+  area.appendChild(b);
+  area.scrollTop = area.scrollHeight;
+}
+
+function tampilkanMengetikInbox() {
+  var area = $('#ibChat');
+  if (!area || area.querySelector('.typing')) return;
+  var d = document.createElement('div');
+  d.className = 'bubble bubble-in typing';
+  d.innerHTML = '<span class="titik"></span><span class="titik"></span><span class="titik"></span>';
+  area.appendChild(d);
+  area.scrollTop = area.scrollHeight;
+}
+function hapusMengetikInbox() { var t = $('#ibChat .typing'); if (t) t.remove(); }
+
+async function kirimChatInbox(e) {
+  e.preventDefault();
+  var input = $('#ibInputChat');
+  var teks = input.value.trim();
+  if (!teks || !state.tiketAktif) return;
+  input.value = '';
+  if (state.modeMinat && !$('#mdAmbil').hidden) ambilMinat(state.tiketAktif);
+  try {
+    await window.RuangPulihRT.kirimPesan(state.tiketAktif, teks);
+    bubbleInbox(teks, 'out');
+    muatInbox();
+  } catch (e2) { bubbleInbox('Pesan gagal terkirim: ' + e2.message, 'in'); }
+}
+
+// Quick replies versi inbox (target panel ibQuick, bukan mdQuick).
+function isiQuickInbox(mode) {
+  var panel = $('#ibQuick');
+  if (!panel) return;
+  var daftar = QUICK_TEKS[mode] || QUICK_TEKS.biasa;
+  panel.innerHTML = daftar.map(function (t) {
+    return '<button type="button" class="chip" data-q="' + esc(t) + '">' + esc(t.length > 52 ? t.slice(0, 52) + '…' : t) + '</button>';
+  }).join('');
+  panel.setAttribute('data-konteks', mode);
+  panel.querySelectorAll('.chip').forEach(function (c) {
+    c.addEventListener('click', async function () {
+      if (!state.tiketAktif) return;
+      var teks = c.getAttribute('data-q');
+      try {
+        await window.RuangPulihRT.kirimPesan(state.tiketAktif, teks);
+        bubbleInbox(teks, 'out');
+      } catch (e2) { notifLive('Pesan gagal terkirim.'); }
+      var input = $('#ibInputChat');
+      if (input) input.focus();
+    });
+  });
+}
+
+// Tombol "Detail & status" di header inbox → buka modal detail penuh.
+function bukaDetailDariInbox() {
+  var tiket = state.tiketAktif;
+  if (!tiket) return;
+  if (tiket.indexOf('PM-') === 0) bukaDetailMinat(tiket);
+  else bukaDetail(tiket);
+}
+
+
 // Daftar balasan siap pakai per konteks tiket.
 var QUICK_TEKS = {
   darurat: [

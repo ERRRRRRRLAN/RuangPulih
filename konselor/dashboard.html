@@ -20,7 +20,7 @@
       <span>Dashboard Konselor</span>
     </div>
     <nav class="dash-nav" aria-label="Navigasi dashboard">
-      <button type="button" id="tabAntrian" class="dash-tab active">Antrian</button>
+      <button type="button" id="tabAntrian" class="dash-tab active">Inbox</button>
       <button type="button" id="tabMinat" class="dash-tab">Minat Program</button>
       <button type="button" id="tabRujukan" class="dash-tab">Rujukan</button>
       <button type="button" id="tabAdmin" class="dash-tab" hidden>Admin</button>
@@ -39,34 +39,38 @@
       <div class="stat-card"><span id="stHari" class="stat-num">0</span><span class="stat-label">Laporan 24 jam terakhir</span></div>
     </section>
 
-    <!-- TAB ANTRIAN -->
+    <!-- TAB INBOX (chat semua tiket) -->
     <section id="panelAntrian" class="dash-panel">
       <div class="panel-head">
-        <h2>Antrian Laporan</h2>
-        <div class="neo-select" id="filterStatusNeo" data-key="filterStatus" data-placeholder="Semua status">
-          <button type="button" class="neo-select-trigger" aria-haspopup="listbox" aria-expanded="false">
-            <span class="neo-select-value">Semua status</span>
-            <svg class="neo-select-chevron" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="6 9l6 6 6-6"/></svg>
-          </button>
-          <div class="neo-select-panel" role="listbox">
-            <button type="button" class="neo-select-option" data-value="">Semua status</button>
-            <button type="button" class="neo-select-option" data-value="Diterima">Diterima</button>
-            <button type="button" class="neo-select-option" data-value="Ditinjau">Ditinjau</button>
-            <button type="button" class="neo-select-option" data-value="Dalam Penanganan">Dalam Penanganan</button>
-            <button type="button" class="neo-select-option" data-value="Selesai">Selesai</button>
+        <h2>Inbox</h2>
+      </div>
+      <div class="inbox-grid">
+        <aside class="inbox-list" id="inboxList" aria-label="Daftar tiket"></aside>
+        <div class="inbox-chat" id="inboxChat">
+          <div class="inbox-kosong" id="inboxKosong">
+            <p>Pilih tiket di kiri untuk membuka percakapan.</p>
+          </div>
+          <div class="inbox-aktif" id="inboxAktif" hidden>
+            <header class="inbox-chat-head">
+              <div>
+                <strong id="ibTiket">-</strong>
+                <span id="ibMeta" class="ib-meta">-</span>
+              </div>
+              <div class="ib-aksi">
+                <span id="ibStatus"></span>
+                <button type="button" id="ibDetail" class="btn-kecil">Detail &amp; status</button>
+              </div>
+            </header>
+            <div id="ibChat" class="chat-area" aria-live="polite"></div>
+            <div class="chat-quick-konselor" id="ibQuick" data-konteks="biasa"></div>
+            <form id="ibFormChat" class="chat-form">
+              <input id="ibInputChat" type="text" placeholder="Tulis balasan..." autocomplete="off" aria-label="Balasan ke pelapor">
+              <button type="submit" class="btn-kecil">Kirim</button>
+            </form>
           </div>
         </div>
-        <select id="filterStatus" hidden aria-hidden="true"><option value=""></option></select>
       </div>
-      <div class="table-wrap">
-        <table class="dash-table">
-          <thead>
-            <tr><th>Nomor tiket</th><th>Untuk</th><th>Kategori</th><th>Status</th><th>Dibuat</th><th></th></tr>
-          </thead>
-          <tbody id="bodyAntrian"></tbody>
-        </table>
-      </div>
-      <p id="antrianKosong" class="dash-empty" hidden>Belum ada laporan pada filter ini.</p>
+      <p id="antrianKosong" class="dash-empty" hidden>Belum ada tiket.</p>
     </section>
 
     <!-- TAB MINAT PROGRAM -->

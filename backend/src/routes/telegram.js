@@ -149,6 +149,11 @@ async function terimaPesan(msg) {
     'INSERT INTO pesan (no_tiket, pengirim, pengirim_id, isi_enc, dibuat) VALUES ($1,$2,$3,$4,$5)'
   ).run(tiket, 'user', null, encrypt(teks), Date.now());
 
+  // Inbox konselor: tiket jadi belum dibaca lagi.
+  if (tiket.startsWith('PN-')) {
+    db.prepare('UPDATE pengaduan SET dibaca=0 WHERE no_tiket=$1').run(tiket).catch(() => {});
+  }
+
   // Trigger PG otomatis push Realtime → konselor dashboard langsung lihat.
 
   audit.catat(`tg:${tgId}`, 'KIRIM_PESAN_TG', `${tiket} dari=user`, 'telegram');
