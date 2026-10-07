@@ -126,14 +126,21 @@ router.get('/', async (req, res) => {
 
 // POST /api/pesan/tiket  { tiket }  → validasi tiket anonim, kirim anon-token
 // Pelapor tidak perlu login — cukup tunjukkan nomor tiketnya.
+// ANTI-ENUMERASI: pesan error identik untuk "tidak ada" & "format salah" agar
+// attacker tak bisa membedakan valid/invalid lebih cepat dari rate limit.
 router.post('/tiket', async (req, res) => {
   try {
     const { tiket } = req.body || {};
-    if (!tiket) return res.status(400).json({ error: 'tiket wajib diisi' });
+    // Format dulu: PN-/PM- + 8 digit + 4 hex. Format salah = 404 (bukan 400 —
+    // jangan bedakan "format salah" dari "tidak ada", itukan oracle enumerasi).
+    if (!tiket || !/^P[NM]-\d{8}-[0-9A-F]{4}$/.test(String(tiket).toUpperCase()))
+      return res.status(404).json({ error: 'tiket tidak ditemukan' });
     if (!await cekTiket(tiket)) return res.status(404).json({ error: 'tiket tidak ditemukan' });
 
-    const { buatJWT } = require('../security');
-    const token = buatJWT({ tiket, anon: true });
+// Token anon: TTL pendek (2 jam) — tiket bocor via chat_event tidak memberi
+// akses permanen; pelapor yang sah bisa minta ulang kapan saja dari web.
+const { buatJWT } = require('../security');
+const token = buatJWT({ tiket, anon: true, exp: Math.floor(Date.now() / 1000) + 2 * 3600 });
     res.json({ ok: true, token });
   } catch (e) {
     console.error('POST /api/pesan/tiket error', e);
