@@ -1,12 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "outputDirectory": ".",
-  "functions": {
-    "api/index.js": {
-      "includeFiles": "backend/**"
-    }
-  },
+  "outputDirectory": "frontend",
+    "functions": {
+      "api/index.js": {
+        "includeFiles": "backend/**"
+      }
+    },
   "headers": [
     {
       "source": "/backend/(.*)",

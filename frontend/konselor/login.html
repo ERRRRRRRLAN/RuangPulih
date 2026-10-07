@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/x-icon" href="/assets/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login Konselor — Ruang Pulih</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/login.css">
+</head>
+<body>
+  <main class="login-kartu">
+    <span class="login-bertanda">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2.4"/><path d="M8 10V7.5a4 4 0 018 0V10"/></svg>
+      Area Terbatas
+    </span>
+
+    <h1>Login Konselor</h1>
+    <p class="sub">Area ini hanya untuk konselor Ruang Pulih. Setiap aktivitas tercatat dalam audit log.</p>
+
+    <form id="formLogin" novalidate>
+      <label for="username">Username</label>
+      <input id="username" name="username" placeholder="masukkan username" autocomplete="username" required>
+      <label for="sandi">Sandi</label>
+      <input id="sandi" name="sandi" type="password" placeholder="masukkan sandi" autocomplete="current-password" required>
+      <p class="err" id="err" role="alert"></p>
+      <button class="btn-masuk" type="submit">
+        Masuk
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+      <a class="kembali" href="/">Kembali ke halaman utama</a>
+    </form>
+  </main>
+  <script src="/js/konselor-login.js"></script>
+</body>
+</html>

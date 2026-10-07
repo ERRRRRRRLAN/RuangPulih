@@ -1,10 +1,7 @@
-# HARDENING: JANGAN deploy folder backend ke Vercel static output.
-# Seluruh source backend/ jalan sebagai serverless functions (api/index.js),
-# bukan sebagai file statis. Termasuk skip:
-backend/
-node_modules/
-.env
+# .vercelignore TIDAK boleh exclude backend/ — serverless api/index.js
+# me-require ../backend/src/server.js (lihat vercel.json functions.includeFiles).
+# Isi minimal: hanya build artifacts yang memang tak dibutuhkan.
 *.log
 *.db
+*.db-journal
 .DS_Store
-.git/
