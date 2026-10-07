@@ -63,6 +63,17 @@ router.get('/', butuhKonselor, async (req, res) => {
 router.get('/:tiket/detail', butuhKonselor, async (req, res) => {
   const p = await db.prepare('SELECT * FROM pengaduan WHERE no_tiket=$1').get(req.params.tiket);
   if (!p) return res.status(404).json({ error: 'tiket tidak ditemukan' });
+
+  // IDOR HARDENING: konselor hanya boleh membaca detail (cerita + kontak)
+  // tiket yang sudah diambil penanganannya olehnya sendiri. Tiket yang belum
+  // diambil harus lewat Antrian dulu (POST /inbox/:tiket/ambil). Admin
+  // (butuhAdmin) tetap boleh memeriksa tiket mana saja.
+  const isAdmin = req.konselor.peran === 'admin';
+  if (!isAdmin && p.ditangani_oleh !== req.konselor.id) {
+    audit.catat(req.konselor.username, 'BACA_PENGADUAN_DITOLAK', p.no_tiket, req.ip);
+    return res.status(403).json({ error: 'tiket belum Anda ambil penanganannya' });
+  }
+
   audit.catat(req.konselor.username, 'BACA_PENGADUAN', p.no_tiket, req.ip);
   res.json(lengkap(p));
 });
