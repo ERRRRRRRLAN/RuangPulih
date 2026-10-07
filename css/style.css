@@ -397,7 +397,9 @@ button { font: inherit; color: inherit; }
 .steps p { font-size: .85rem; margin-top: 2px; }
 
 /* Cara kerja: steps kiri + ilustrasi strip tiket kanan (gaya ticket-box) */
-.pengaduan-ilustrasi { position: sticky; top: 90px; }
+/* BUG SCROLL FIX: sticky + reveal transform bikin kartu "nyangkut"/kedip saat
+   scroll cepat — ilustrasi tidak sticky lagi, ikut alur dokumen normal. */
+.pengaduan-ilustrasi { min-width: 0; }
 .ilustrasi-grafis {
   background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--out);
   padding: var(--s-6); display: flex; flex-direction: column; gap: 13px; max-width: 470px;
