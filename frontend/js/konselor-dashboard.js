@@ -506,6 +506,15 @@ function sambungDashboardWS() {
       }
     }
   });
+  // FALLBACK PENTING: RLS chat_event sekarang membatasi role anon, jadi
+  // event tipe='pesan' tidak sampai ke dashboard via Realtime (lihat
+  // migrations/002-tutup-chat-event.sql). Polling aman via cookie konselor
+  // memastikan notifikasi chat masuk tetap jalan.
+  if (!state.pollInbox) {
+    state.pollInbox = setInterval(function () {
+      if ($('#panelAntrian') && !$('#panelAntrian').hidden) muatInbox();
+    }, 15000);
+  }
 }
 
 function notifLive(teks) {
