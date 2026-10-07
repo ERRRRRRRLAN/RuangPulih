@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=8" />
+  <link rel="stylesheet" href="css/style.css?v=9" />
 </head>
 <body>
   <!-- ============ NAVBAR ============ -->
@@ -110,63 +110,72 @@
     </section>
 
     <!-- ============ CARA KERJA ============ -->
-        <section class="section" id="cara-kerja">
-          <div class="container">
-            <div class="section-head reveal">
-              <span class="sec-num">01</span>
-              <h2>Cara kerja Ruang Pulih</h2>
-              <p>Dari cerita sampai pemulihan. Identitas Anda tidak pernah ditanyakan.</p>
-            </div>
-            <div class="pengaduan-grid">
-              <aside class="card info-panel reveal">
-                <ol class="steps">
-                  <li>
-                    <span class="step-num">1</span>
-                    <div><b>Isi formulir laporan</b><p>Ceritakan kondisi yang Anda atau orang terdekat alami. Tidak ada kolom nama atau kontak wajib.</p></div>
-                  </li>
-                  <li>
-                    <span class="step-num">2</span>
-                    <div><b>Simpan nomor tiket</b><p>Setelah laporan terkirim, Anda mendapat kode unik seperti PN-20261004-9F77. Satu-satunya kunci untuk melacak dan membuka chat.</p></div>
-                  </li>
-                  <li>
-                    <span class="step-num">3</span>
-                    <div><b>Ngobrol dengan konselor</b><p>Buka chat di web ini atau di Telegram @RuangPulihBot dengan mengetik /chat diikuti nomor tiket Anda. Konselor membalas di tempat yang sama.</p></div>
-                  </li>
-                  <li>
-                    <span class="step-num">4</span>
-                    <div><b>Lanjut ke program bila siap</b><p>Konselor bisa mengarahkan ke detoksifikasi, rehabilitasi, atau aftercare. Daftar minat tanpa nama, lacak lewat kode.</p></div>
-                  </li>
-                </ol>
-                <div class="info-note">
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8h.01M12 11v5"/><circle cx="12" cy="12" r="9"/></svg>
-                  <p>Semua gratis. Status tiket bisa dicek kapan saja tanpa identitas. Form ini bukan saluran darurat. Jika ada nyawa terancam, hubungi <b>119</b> atau <b>110</b> langsung.</p>
-                </div>
-              </aside>
-              <div class="pengaduan-ilustrasi reveal">
-                <div class="ilustrasi-grafis">
-                  <div class="il-box">
-                    <span>1</span>
-                    <p>Laporan anonim</p>
-                  </div>
-                  <div class="il-garis"></div>
-                  <div class="il-box">
-                    <span>2</span>
-                    <p>Kode tiket</p>
-                  </div>
-                  <div class="il-garis"></div>
-                  <div class="il-box il-box-aktif">
-                    <span>3</span>
-                    <p>Ngobrol dengan konselor</p>
-                  </div>
-                  <div class="il-garis"></div>
-                  <div class="il-box">
-                    <span>4</span>
-                    <p>Program pemulihan</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <section class="section" id="cara-kerja">
+            <div class="container">
+                    <div class="section-head reveal">
+                      <span class="sec-num">01</span>
+                      <h2>Cara kerja Ruang Pulih</h2>
+                      <p>Empat langkah dari cerita sampai pemulihan. Identitas Anda tidak pernah ditanyakan.</p>
+                    </div>
+                    <!-- ========== STEPPER HORIZONTAL (desktop) / VERTICAL (mobile) ========== -->
+                    <div class="how-steps" id="howSteps">
+                      <div class="how-step" data-step="1">
+                        <div class="how-icon">
+                          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        </div>
+                        <div class="how-body">
+                          <span class="how-num">01</span>
+                          <h3>Isi formulir laporan</h3>
+                          <p>Ceritakan kondisi yang Anda atau orang terdekat alami. Tidak ada kolom nama atau kontak wajib.</p>
+                        </div>
+                      </div>
+                      <div class="how-connector"></div>
+                      <div class="how-step" data-step="2">
+                        <div class="how-icon">
+                          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h3v3H7zM14 7h3v3h-3zM7 14h10v3H7z"/></svg>
+                        </div>
+                        <div class="how-body">
+                          <span class="how-num">02</span>
+                          <h3>Simpan nomor tiket</h3>
+                          <p>Anda mendapat kode unik seperti <strong>PN-20261004-9F77</strong>. Satu-satunya kunci untuk melacak dan membuka chat.</p>
+                        </div>
+                      </div>
+                      <div class="how-connector"></div>
+                      <div class="how-step" data-step="3">
+                        <div class="how-icon">
+                          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                        </div>
+                        <div class="how-body">
+                          <span class="how-num">03</span>
+                          <h3>Ngobrol dengan konselor</h3>
+                          <p>Buka chat di web ini atau di Telegram <strong>@RuangPulihBot</strong> dengan mengetik <code>/chat PN-xxx</code>. Konselor membalas di tempat yang sama.</p>
+                        </div>
+                      </div>
+                      <div class="how-connector"></div>
+                      <div class="how-step" data-step="4">
+                        <div class="how-icon">
+                          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                        <div class="how-body">
+                          <span class="how-num">04</span>
+                          <h3>Lanjut ke program bila siap</h3>
+                          <p>Konselor bisa mengarahkan ke detoksifikasi, rehabilitasi, atau aftercare. Daftar minat tanpa nama, lacak lewat kode tiket.</p>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- ========== PROGRESS DOTS (scroll spy indicator) ========== -->
+                    <div class="how-progress" aria-hidden="true">
+                      <span class="hp-dot active" data-goto="1"></span>
+                      <span class="hp-dot" data-goto="2"></span>
+                      <span class="hp-dot" data-goto="3"></span>
+                      <span class="hp-dot" data-goto="4"></span>
+                    </div>
+                    <!-- ========== CATATAN ========== -->
+                    <div class="how-note reveal">
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8h.01M12 11v5"/><circle cx="12" cy="12" r="9"/></svg>
+                      <p>Semua gratis. Status tiket bisa dicek kapan saja tanpa identitas. Form ini bukan saluran darurat. Jika ada nyawa terancam, hubungi <b>119</b> atau <b>110</b> langsung.</p>
+                    </div>
+      </div>
         </section>
 
         <!-- ============ PENGADUAN ============ -->
@@ -424,6 +433,7 @@
       <p>&copy; <span data-year>2026</span> Ruang Pulih. Prototipe layanan, bukan pengganti pertolongan medis darurat.</p>
     </div>
   </footer>
+</main>
 
   <!-- ============ FAB + MODAL CHAT KONSELING ============ -->
   <!-- Struktur FAB & modal di-inject oleh js/chat-ui.js (satu sumber), -->
@@ -441,7 +451,7 @@
   <script>if (typeof window.supabase === 'undefined') document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"><\/script>');</script>
   <script src="js/chat-ui.js"></script>
   <script src="js/realtime.js"></script>
-  <script src="js/script.js"></script>
+  <script src="js/script.js?v=2"></script>
   <script src="js/chat-hide.js"></script>
 </body>
 </html>

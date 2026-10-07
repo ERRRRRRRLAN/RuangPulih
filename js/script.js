@@ -244,6 +244,42 @@
     }, { rootMargin: '-45% 0px -50% 0px' });
     sections.forEach(function (s) { navIO.observe(s); });
   }
+  /* ===================== SCROLL SPY: how-steps stepper ===================== */
+  (function () {
+    var steps = $$('#howSteps .how-step');
+    var dots = $$('.hp-dot');
+    var dots2 = $$('.how-progress .hp-dot');
+    if (!steps.length) return;
+    var spIO = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) {
+          var n = parseInt(en.target.getAttribute('data-step'), 10);
+          steps.forEach(function (s) {
+            s.classList.toggle('active', parseInt(s.getAttribute('data-step'), 10) === n);
+          });
+          dots.forEach(function (d) {
+            d.classList.toggle('active', parseInt(d.getAttribute('data-goto'), 10) === n);
+          });
+          dots2.forEach(function (d) {
+            d.classList.toggle('active', parseInt(d.getAttribute('data-goto'), 10) === n);
+          });
+          // Dot click → scroll halus ke step
+          dots.forEach(function (d) {
+            d.onclick = function () {
+              var target = document.querySelector('[data-step="' + d.getAttribute('data-goto') + '"]');
+              if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            };
+          });
+        }
+      });
+    }, { rootMargin: '-30% 0px -60% 0px', threshold: 0 });
+    steps.forEach(function (s) { spIO.observe(s); });
+    // Aktifkan step 1 di load
+    steps[0].classList.add('active');
+    dots[0].classList.add('active');
+    dots2[0].classList.add('active');
+  }());
+
   /* ===================== REVEAL ON SCROLL ===================== */
   var reveals = $$('.reveal');
   if ('IntersectionObserver' in window && !reduceMotion) {
