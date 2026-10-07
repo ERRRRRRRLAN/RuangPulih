@@ -1,7 +1,7 @@
 // Route pesan (serverless-safe): kirim & ambil pesan chat via HTTP.
 // Realtime push dipegang Supabase (tabel chat_event) — route ini hanya tulis/baca.
 const { Router } = require('express');
-const { verifikasiJWT, encrypt, decrypt } = require('../security');
+const { verifikasiJWT, encrypt, decrypt, buatJWT } = require('../security');
 const { ambilSesi } = require('../deps');
 const db = require('../db');
 const audit = require('../audit');
