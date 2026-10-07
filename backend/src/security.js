@@ -28,7 +28,7 @@ function decrypt(blob) {
 
 const hashSandi = p => bcrypt.hash(p, 12);
 const cekSandi = (p, h) => bcrypt.compare(p, h);
-const buatJWT = (payload) => jwt.sign(payload, config.JWT_SECRET, { expiresIn: config.JWT_TTL });
+const buatJWT = (payload, ttl) => jwt.sign(payload, config.JWT_SECRET, { expiresIn: ttl || config.JWT_TTL });
 const verifikasiJWT = (t) => jwt.verify(t, config.JWT_SECRET);
 
 module.exports = { encrypt, decrypt, hashSandi, cekSandi, buatJWT, verifikasiJWT };

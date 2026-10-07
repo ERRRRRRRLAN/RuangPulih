@@ -137,10 +137,9 @@ router.post('/tiket', async (req, res) => {
       return res.status(404).json({ error: 'tiket tidak ditemukan' });
     if (!await cekTiket(tiket)) return res.status(404).json({ error: 'tiket tidak ditemukan' });
 
-// Token anon: TTL pendek (2 jam) — tiket bocor via chat_event tidak memberi
-// akses permanen; pelapor yang sah bisa minta ulang kapan saja dari web.
-const { buatJWT } = require('../security');
-const token = buatJWT({ tiket, anon: true, exp: Math.floor(Date.now() / 1000) + 2 * 3600 });
+// Token anon: TTL pendek (2 jam) — tiket bocor tidak memberi akses permanen;
+// pelapor yang sah bisa minta ulang kapan saja dari web.
+const token = buatJWT({ tiket, anon: true }, '2h');
     res.json({ ok: true, token });
   } catch (e) {
     console.error('POST /api/pesan/tiket error', e);
