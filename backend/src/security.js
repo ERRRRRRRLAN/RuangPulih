@@ -26,9 +26,23 @@ function decrypt(blob) {
   return Buffer.concat([d.update(Buffer.from(dataB, 'base64')), d.final()]).toString('utf8');
 }
 
+/**
+ * Dekripsi yang tidak pernah melempar — untuk membangun response API.
+ * Satu data lama yang tak terbaca (key diganti / korup) tidak boleh
+ * menjatuhkan seluruh endpoint (500). Kembalikan placeholder + log.
+ */
+function decryptAman(blob, label = 'data') {
+  if (!blob) return null;
+  try { return decrypt(blob); }
+  catch (e) {
+    console.error(`[decrypt] gagal membuka ${label}:`, e.message);
+    return '[data tidak dapat dibaca]';
+  }
+}
+
 const hashSandi = p => bcrypt.hash(p, 12);
 const cekSandi = (p, h) => bcrypt.compare(p, h);
 const buatJWT = (payload, ttl) => jwt.sign(payload, config.JWT_SECRET, { expiresIn: ttl || config.JWT_TTL });
 const verifikasiJWT = (t) => jwt.verify(t, config.JWT_SECRET);
 
-module.exports = { encrypt, decrypt, hashSandi, cekSandi, buatJWT, verifikasiJWT };
+module.exports = { encrypt, decrypt, decryptAman, hashSandi, cekSandi, buatJWT, verifikasiJWT };

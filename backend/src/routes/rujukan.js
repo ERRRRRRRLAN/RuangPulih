@@ -21,7 +21,7 @@ const router = express.Router();
 const crypto = require('node:crypto');
 const db = require('../db');
 const { butuhKonselor } = require('../deps');
-const { encrypt, decrypt } = require('../security');
+const { encrypt, decrypt, decryptAman } = require('../security');
 const { catat } = require('../audit');
 const { buatEventRujukan, buatEventStatus } = require('../realtime');
 
@@ -123,17 +123,27 @@ router.get('/', butuhKonselor, async (req, res) => {
      LIMIT $${lp} OFFSET $${op}`
   ).all(...params, limit, offset);
 
-  const items = rows.map((r) => ({
-    kode_rujukan: r.kode_rujukan,
-    sumber_tiket: r.sumber_tiket,
-    tujuan: r.tujuan,
-    instansi: r.instansi,
-    alasan: decrypt(r.alasan_enc),
-    status: r.status,
-    dibuat: r.dibuat,
-    diperbarui: r.diperbarui,
-    dibuat_oleh: r.dibuat_oleh_nama || null,
-  }));
+  const items = rows.map((r) => {
+    let alasan = null;
+    try { alasan = decrypt(r.alasan_enc); }
+    catch (e) {
+      // Data terenkripsi tidak bisa dibuka (key berubah / korup). Jangan
+      // jatuhkan seluruh endpoint — tampilkan placeholder & log untuk admin.
+      console.error('[rujukan] decrypt gagal', r.kode_rujukan, e.message);
+      alasan = '[data tidak dapat dibaca]';
+    }
+    return {
+      kode_rujukan: r.kode_rujukan,
+      sumber_tiket: r.sumber_tiket,
+      tujuan: r.tujuan,
+      instansi: r.instansi,
+      alasan,
+      status: r.status,
+      dibuat: r.dibuat,
+      diperbarui: r.diperbarui,
+      dibuat_oleh: r.dibuat_oleh_nama || null,
+    };
+  });
 
   res.json({ total, items });
 });
@@ -156,7 +166,7 @@ router.get('/:kode', butuhKonselor, async (req, res) => {
     sumber_tiket: r.sumber_tiket,
     tujuan: r.tujuan,
     instansi: r.instansi,
-    alasan: decrypt(r.alasan_enc),
+    alasan: decryptAman(r.alasan_enc, `rujukan ${r.kode_rujukan}`),
     status: r.status,
     dibuat: r.dibuat,
     diperbarui: r.diperbarui,

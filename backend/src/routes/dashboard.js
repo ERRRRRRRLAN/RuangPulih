@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { butuhKonselor, butuhAdmin } = require('../deps');
-const { hashSandi, decrypt } = require('../security');
+const { hashSandi, decrypt, decryptAman } = require('../security');
 const { catat } = require('../audit');
 
 // GET /api/dashboard/stats — ringkasan untuk dashboard konselor
@@ -123,8 +123,8 @@ router.get('/minat', butuhKonselor, async (req, res) => {
     usia: r.usia,
     status: r.status,
     prioritas: r.prioritas,
-    kontak: r.kontak_enc ? decrypt(r.kontak_enc) : null,
-    catatan: r.catatan_enc ? decrypt(r.catatan_enc) : null,
+    kontak: decryptAman(r.kontak_enc, `minat ${r.kode_lacak}`),
+    catatan: decryptAman(r.catatan_enc, `minat ${r.kode_lacak}`),
     dibuat: r.dibuat,
     diperbarui: r.diperbarui,
     ditangani_oleh: r.ditangani_oleh_nama || null,

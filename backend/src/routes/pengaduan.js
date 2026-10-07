@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const { encrypt, decrypt } = require('../security');
+const { encrypt, decrypt, decryptAman } = require('../security');
 const { butuhKonselor } = require('../deps');
 const audit = require('../audit');
 const { buatEventPengaduanBaru } = require('../realtime');
@@ -18,7 +18,8 @@ function publik(p) {
            usia: p.usia, status: p.status, darurat: !!p.darurat, dibuat: p.dibuat };
 }
 function lengkap(p) {
-  return { ...publik(p), cerita: decrypt(p.cerita_enc), kontak: p.kontak_enc ? decrypt(p.kontak_enc) : null,
+  return { ...publik(p), cerita: decryptAman(p.cerita_enc, `tiket ${p.no_tiket}`),
+           kontak: decryptAman(p.kontak_enc, `tiket ${p.no_tiket}`),
            lokasi: p.lokasi, ditangani_oleh: p.ditangani_oleh, diperbarui: p.diperbarui };
 }
 

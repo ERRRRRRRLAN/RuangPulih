@@ -1,7 +1,7 @@
 // Route pesan (serverless-safe): kirim & ambil pesan chat via HTTP.
 // Realtime push dipegang Supabase (tabel chat_event) — route ini hanya tulis/baca.
 const { Router } = require('express');
-const { verifikasiJWT, encrypt, decrypt, buatJWT } = require('../security');
+const { verifikasiJWT, encrypt, decrypt, decryptAman, buatJWT } = require('../security');
 const { ambilSesi } = require('../deps');
 const db = require('../db');
 const audit = require('../audit');
@@ -117,7 +117,7 @@ router.get('/', async (req, res) => {
     }
 
     const rows = await db.prepare('SELECT pengirim, isi_enc, dibuat FROM pesan WHERE no_tiket=$1 ORDER BY dibuat ASC').all(tiket);
-    res.json({ tiket, pesan: rows.map(r => ({ pengirim: r.pengirim, isi: decrypt(r.isi_enc), dibuat: r.dibuat })) });
+    res.json({ tiket, pesan: rows.map(r => ({ pengirim: r.pengirim, isi: decryptAman(r.isi_enc, `pesan tiket ${tiket}`), dibuat: r.dibuat })) });
   } catch (e) {
     console.error('GET /api/pesan error', e);
     res.status(500).json({ error: 'server error' });
