@@ -11,100 +11,39 @@
     {
       "source": "/backend/(.*)",
       "headers": [
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "no-store, no-cache, must-revalidate"
-        },
-        {
-          "key": "Content-Type",
-          "value": "text/plain"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "no-referrer"
-        }
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, private" },
+        { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
       ]
     },
     {
       "source": "/.env",
       "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-store"
-        },
-        {
-          "key": "Content-Type",
-          "value": "text/plain"
-        }
+        { "key": "Cache-Control", "value": "no-store, private" },
+        { "key": "Content-Type", "value": "text/plain" }
       ]
     },
     {
       "source": "/(.*)",
       "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "no-referrer"
-        },
-        {
-          "key": "Strict-Transport-Security",
-          "value": "max-age=31536000; includeSubDomains"
-        },
-        {
-          "key": "Permissions-Policy",
-          "value": "geolocation=(), camera=(), microphone=()"
-        },
-        {
-          "key": "X-DNS-Prefetch-Control",
-          "value": "off"
-        },
-        {
-          "key": "X-Permitted-Cross-Domain-Policies",
-          "value": "none"
-        }
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains; preload" },
+        { "key": "Permissions-Policy", "value": "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()" },
+        { "key": "X-DNS-Prefetch-Control", "value": "off" },
+        { "key": "X-Permitted-Cross-Domain-Policies", "value": "none" },
+        { "key": "X-XSS-Protection", "value": "1; mode=block" }
       ]
     }
   ],
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.js"
-    },
-    {
-      "source": "/program",
-      "destination": "/program.html"
-    },
-    {
-      "source": "/konselor",
-      "destination": "/konselor/login.html"
-    },
-    {
-      "source": "/konselor/masuk",
-      "destination": "/konselor/login.html"
-    },
-    {
-      "source": "/konselor/login",
-      "destination": "/konselor/login.html"
-    },
-    {
-      "source": "/konselor/dashboard",
-      "destination": "/konselor/dashboard.html"
-    }
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/program", "destination": "/program.html" },
+    { "source": "/konselor", "destination": "/konselor/login.html" },
+    { "source": "/konselor/masuk", "destination": "/konselor/login.html" },
+    { "source": "/konselor/login", "destination": "/konselor/login.html" },
+    { "source": "/konselor/dashboard", "destination": "/konselor/dashboard.html" }
   ],
   "cleanUrls": false
 }
