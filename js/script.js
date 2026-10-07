@@ -244,40 +244,59 @@
     }, { rootMargin: '-45% 0px -50% 0px' });
     sections.forEach(function (s) { navIO.observe(s); });
   }
-  /* ===================== SCROLL SPY: how-steps stepper ===================== */
+  /* ===================== SCROLL PROGRESS: how-steps stepper ===================== */
+  // Progres berbasis posisi scroll section (BUKAN intersect per-step — keempat
+  // step sebaris masuk viewport bersamaan, IO per-elemen bikin lompat 1→4).
   (function () {
+    var wrap = $('#howSteps');
+    if (!wrap) return;
     var steps = $$('#howSteps .how-step');
-    var dots = $$('.hp-dot');
-    var dots2 = $$('.how-progress .hp-dot');
-    if (!steps.length) return;
-    var spIO = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        if (en.isIntersecting) {
-          var n = parseInt(en.target.getAttribute('data-step'), 10);
-          steps.forEach(function (s) {
-            s.classList.toggle('active', parseInt(s.getAttribute('data-step'), 10) === n);
-          });
-          dots.forEach(function (d) {
-            d.classList.toggle('active', parseInt(d.getAttribute('data-goto'), 10) === n);
-          });
-          dots2.forEach(function (d) {
-            d.classList.toggle('active', parseInt(d.getAttribute('data-goto'), 10) === n);
-          });
-          // Dot click → scroll halus ke step
-          dots.forEach(function (d) {
-            d.onclick = function () {
-              var target = document.querySelector('[data-step="' + d.getAttribute('data-goto') + '"]');
-              if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            };
-          });
-        }
+    var garis = $$('#howSteps .how-connector');
+    var dots = $$('.how-progress .hp-dot');
+    var last = -1;
+
+    function setAktif(n) {
+      if (n === last) return;
+      last = n;
+      steps.forEach(function (s) {
+        var i = parseInt(s.getAttribute('data-step'), 10);
+        s.classList.toggle('active', i === n);   // tahap saat ini: menyala penuh
+        s.classList.toggle('done', i < n);       // tahap terlewati: centang halus
       });
-    }, { rootMargin: '-30% 0px -60% 0px', threshold: 0 });
-    steps.forEach(function (s) { spIO.observe(s); });
-    // Aktifkan step 1 di load
-    steps[0].classList.add('active');
-    dots[0].classList.add('active');
-    dots2[0].classList.add('active');
+      garis.forEach(function (g, i) {
+        g.classList.toggle('done', i < n - 1);   // garis terisi sampai tahap aktif
+      });
+      dots.forEach(function (d) {
+        d.classList.toggle('active', parseInt(d.getAttribute('data-goto'), 10) === n);
+      });
+    }
+
+    var antri = false;
+    function onScroll() {
+      if (antri) return;
+      antri = true;
+      requestAnimationFrame(function () {
+        antri = false;
+        var r = wrap.getBoundingClientRect();
+        var vh = window.innerHeight || 1;
+        // 0 saat section mulai masuk (top menyentuh 90% layar),
+        // 1 saat section sudah naik ke 25% layar → 4 tahap merata sepanjang scroll.
+        var t = (vh * 0.9 - r.top) / (Math.max(r.height, 1) + vh * 0.55);
+        t = Math.max(0, Math.min(1, t));
+        setAktif(Math.min(4, 1 + Math.floor(t * 4)));
+      });
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    dots.forEach(function (d) {
+      d.addEventListener('click', function () {
+        var target = document.querySelector('[data-step="' + d.getAttribute('data-goto') + '"]');
+        if (target) target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+      });
+    });
+    setAktif(1);
+    onScroll();
   }());
 
   /* ===================== REVEAL ON SCROLL ===================== */

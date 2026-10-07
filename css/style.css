@@ -1259,7 +1259,12 @@ body.chat-disembunyikan .chat-unhide { display: inline-flex; }
   width: 40px; flex: none; min-height: 56px;
   display: flex; align-items: center; justify-content: center; padding-bottom: 40px;
 }
-.how-connector::before { content: ''; display: block; width: 100%; height: 2px; background: var(--line); border-radius: 99px; }
+.how-connector::before { content: ''; display: block; width: 100%; height: 2px; background: var(--line); border-radius: 99px; transition: background .3s; }
+/* Garis antar tahap yang sudah terlewati: terisi accent */
+.how-connector.done::before { background: var(--accent-2); }
+/* Tahap yang sudah dilewati: icon tetap accent tapi tanpa ring, ada ceklis */
+.how-step.done .how-icon { background: var(--surface-2); color: var(--accent-2); box-shadow: var(--out-sm); }
+.how-step.done .how-num { color: var(--accent-2); }
 .how-step.active .how-icon { background: var(--accent); color: var(--on-accent); box-shadow: 0 0 0 6px var(--accent-soft); }
 .how-step.active .how-num { color: var(--accent); }
 .how-step.active .how-body h3 { color: var(--accent); }
