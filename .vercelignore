@@ -1,5 +1,10 @@
-# Env sensitif & dev artifacts
-backend/.env
-.git
-.gitignore
-*.md
+# HARDENING: JANGAN deploy folder backend ke Vercel static output.
+# Seluruh source backend/ jalan sebagai serverless functions (api/index.js),
+# bukan sebagai file statis. Termasuk skip:
+backend/
+node_modules/
+.env
+*.log
+*.db
+.DS_Store
+.git/
