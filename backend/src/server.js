@@ -20,6 +20,8 @@ app.set('trust proxy', 1);
 const rateLimit = require('./middleware/rateLimit');
 app.use('/api/auth/login', rateLimit({ windowMs: 60_000, max: 5 }));   // login: 5x/menit
 app.use('/api/pengaduan', rateLimit({ windowMs: 60_000, max: 10 }));  // pengaduan: 10x/menit
+app.use('/api/pesan', rateLimit({ windowMs: 60_000, max: 30 }));      // pesan: 30x/menit per IP
+app.use('/api/pesan/tiket', rateLimit({ windowMs: 60_000, max: 10 })); // validasi tiket anon: 10x/menit (anti brute-force kode tiket)
 app.use('/api', rateLimit());                                          // umum: 30x/menit
 
 // Route API
