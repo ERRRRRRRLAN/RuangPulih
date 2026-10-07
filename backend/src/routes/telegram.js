@@ -21,8 +21,14 @@ const { buatEventPesan, kirimPesanTelegram, apiTelegram } = require('../realtime
 const router = Router();
 const TELEGRAM_TOKEN = config.TELEGRAM_TOKEN || '';
 
-// Webhook secret: header X-Telegram-Bot-Api-Secret-Token atau di URL path.
-const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || 'rp-webhook-2026';
+// Webhook secret: HARUS dari env, tidak ada fallback. Validasi saat runtime (bukan
+// import) agar serverless cold-start tidak crash. Fail-closed — jika secret belum
+// diset di Vercel env vars, webhook Telegram ditolak 500 dan attacker tidak bisa POST.
+function getWebhookSecret() {
+  const s = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (!s || !s.trim()) throw new Error('TELEGRAM_WEBHOOK_SECRET belum diset di environment');
+  return s.trim();
+}
 
 // Quick-reply standar untuk pelapor (inline keyboard context-aware).
 const URL_WEB = 'https://website-konseling-narkotika.vercel.app';
@@ -40,12 +46,13 @@ function keyboardCepat(tiket) {
 }
 
 // Cek keamanan: webhook harus tetap rahasia. Vercel: secret di env, bukan di repo.
+// Attacker tidak bisa POST webhook palsu tanpa secret ini.
 function verifyWebhook(req) {
-  // Prioritas: secret token header Telegram
+  const secret = getWebhookSecret();
   const headerSecret = req.get('X-Telegram-Bot-Api-Secret-Token');
-  if (headerSecret && headerSecret === WEBHOOK_SECRET) return true;
-  // atau rute URL bersecret
-  if (req.url && req.url.includes('/' + WEBHOOK_SECRET)) return true;
+  if (headerSecret && headerSecret === secret) return true;
+  // Verifikasi juga path (double-gate: header + URL)
+  if (req.url && req.url.includes('/' + secret)) return true;
   return false;
 }
 

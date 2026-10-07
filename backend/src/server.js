@@ -33,7 +33,24 @@ app.use('/api/telegram', require('./routes/telegram'));
 app.use('/api/dashboard', require('./routes/inbox')); // inbox terpisah file, rute sama
 
 // Frontend statis (root repo) — melayani index.html, css/, js/, konselor/
+// HARDENING: backend/ & file rahasia TIDAK BOLEH terlayani publik.
+// (Audit menemukan /backend/src/*.js & schema-postgres.sql bisa diunduh publik
+//  — attacker dapat mempelajari mekanisme enkripsi & struktur DB.)
 const ROOT = path.resolve(__dirname, '..', '..');
+const BLOKIR = [
+  /^\/backend(\/|$)/i,        // seluruh backend: source, .env, schema, package.json
+  /^\/\.env/i,                // .env root
+  /\.(db|sqlite3?|log)$/i,    // database lokal & log
+  /^\/node_modules(\/|$)/i,   // dependency tree
+  /^\/\.git(\/|$)/i,          // metadata git
+];
+app.use((req, res, next) => {
+  if (BLOKIR.some(rx => rx.test(req.url))) {
+    // 404, bukan 403 — jangan konfirmasi keberadaan file
+    return res.status(404).json({ error: 'tidak ditemukan' });
+  }
+  next();
+});
 const opsiStatic = { extensions: ['html'], maxAge: 0 };
 app.use(express.static(ROOT, opsiStatic));
 

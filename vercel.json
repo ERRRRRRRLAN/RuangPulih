@@ -7,13 +7,104 @@
       "includeFiles": "backend/**"
     }
   },
+  "headers": [
+    {
+      "source": "/backend/(.*)",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        },
+        {
+          "key": "Content-Type",
+          "value": "text/plain"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
+      "source": "/.env",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Content-Type",
+          "value": "text/plain"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "geolocation=(), camera=(), microphone=()"
+        },
+        {
+          "key": "X-DNS-Prefetch-Control",
+          "value": "off"
+        },
+        {
+          "key": "X-Permitted-Cross-Domain-Policies",
+          "value": "none"
+        }
+      ]
+    }
+  ],
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.js" },
-    { "source": "/program", "destination": "/program.html" },
-    { "source": "/konselor", "destination": "/konselor/login.html" },
-    { "source": "/konselor/masuk", "destination": "/konselor/login.html" },
-    { "source": "/konselor/login", "destination": "/konselor/login.html" },
-    { "source": "/konselor/dashboard", "destination": "/konselor/dashboard.html" }
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/program",
+      "destination": "/program.html"
+    },
+    {
+      "source": "/konselor",
+      "destination": "/konselor/login.html"
+    },
+    {
+      "source": "/konselor/masuk",
+      "destination": "/konselor/login.html"
+    },
+    {
+      "source": "/konselor/login",
+      "destination": "/konselor/login.html"
+    },
+    {
+      "source": "/konselor/dashboard",
+      "destination": "/konselor/dashboard.html"
+    }
   ],
   "cleanUrls": false
 }
