@@ -137,20 +137,30 @@ body { background: var(--bg); color: var(--text); }
 .pool-list .ib-ambil { margin-top: 2px; }
 .panel-sub { font-size: .84rem; color: var(--text-mute); margin: 2px 0 0; }
 .dash-tab { position: relative; }
-.pool-count-badge, .dash-tab .pool-count-badge {
-  display: inline-block; margin-left: 6px; min-width: 18px; text-align: center;
-  font-size: .68rem; font-weight: 800; padding: 1px 7px; border-radius: 99px;
-  background: var(--accent); color: var(--surface);
-  white-space: nowrap; text-transform: lowercase;
+/* Badge counter antrian: pil angka kecil, sejajar teks tab */
+.dash-tab .tab-badge, .pool-count-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-left: 7px; min-width: 19px; height: 19px; padding: 0 6px;
+  font-size: .7rem; font-weight: 800; line-height: 1; letter-spacing: 0;
+  border-radius: 99px; background: var(--accent); color: var(--on-accent);
+  white-space: nowrap; vertical-align: middle;
 }
-/* Ada darurat di antrian: badge merah, tak bisa diabaikan */
-.dash-tab .pool-badge-darurat {
-  background: var(--danger);
+/* Tab aktif (latar accent): badge dibalik biar tetap kontras */
+.dash-tab.active .tab-badge {
+  background: var(--on-accent); color: var(--accent);
+}
+/* Ada darurat di antrian: badge merah + denyut halus, tak bisa diabaikan */
+.dash-tab .tab-badge.pool-badge-darurat {
+  background: var(--danger); color: #fff;
   animation: pool-pulse 2.2s ease-in-out infinite;
 }
+.dash-tab.active .tab-badge.pool-badge-darurat { color: #fff; }
 @keyframes pool-pulse {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.06); }
+  50% { transform: scale(1.08); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dash-tab .tab-badge.pool-badge-darurat { animation: none; }
 }
 
 /* dropdown di dalam modal harus di atas konten modal */

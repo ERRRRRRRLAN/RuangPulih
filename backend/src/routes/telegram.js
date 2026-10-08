@@ -159,6 +159,8 @@ async function terimaPesan(msg) {
   // Inbox konselor: tiket jadi belum dibaca lagi.
   if (tiket.startsWith('PN-')) {
     db.prepare('UPDATE pengaduan SET dibaca=0 WHERE no_tiket=$1').run(tiket).catch(() => {});
+  } else if (tiket.startsWith('PM-')) {
+    db.prepare('UPDATE minat_program SET dibaca=0 WHERE kode_lacak=$1').run(tiket).catch(() => {});
   }
 
   // Trigger PG otomatis push Realtime → konselor dashboard langsung lihat.

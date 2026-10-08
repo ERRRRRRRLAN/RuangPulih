@@ -784,9 +784,14 @@ async function muatInbox() {
     // Pool tiket belum diambil siapa pun (ditangani_oleh NULL) — tampil di
     // section terpisah di bawah list pribadi. Bisa diambil manual dari sini.
     var pool = await api('/api/dashboard/antrian?limit=100');
-    state.poolBelumDiambil = (pool.items || []).filter(function (p) {
-      return p.ditangani_oleh == null;
-    });
+    // Pool = PN + PM yang belum ditangani siapa pun, status masih jalan.
+    var poolPm = await api('/api/dashboard/minat?limit=100');
+    state.poolBelumDiambil = (pool.items || [])
+      .filter(function (p) { return p.ditangani_oleh == null; })
+      .map(function (p) { return { no_tiket: p.no_tiket, jenis: 'PN', kategori: p.kategori, untuk: p.untuk, darurat: p.darurat, dibuat: p.dibuat }; })
+      .concat((poolPm.items || [])
+        .filter(function (m) { return m.ditangani_oleh == null && m.status !== 'Selesai'; })
+        .map(function (m) { return { no_tiket: m.kode_lacak, jenis: 'PM', kategori: m.program, untuk: m.panggilan || '-', darurat: m.prioritas === 'Tinggi', dibuat: m.dibuat }; }));
     renderInbox();
     renderPool();
     var pc = $('#poolCount');
@@ -794,9 +799,10 @@ async function muatInbox() {
       var pl = state.poolBelumDiambil || [];
       var nD = pl.filter(function (p) { return p.darurat; }).length;
       pc.hidden = pl.length === 0;
-      // Badge informatif: jumlah + penanda darurat biar tak cuma angka polos.
-      pc.textContent = pl.length + (nD ? ' · ' + nD + ' darurat' : '');
+      // Badge ringkas: angka saja; darurat ditandai kelas, bukan teks panjang.
+      pc.textContent = pl.length;
       pc.classList.toggle('pool-badge-darurat', nD > 0);
+      pc.title = nD > 0 ? (pl.length + ' tiket, ' + nD + ' darurat') : (pl.length + ' tiket belum diambil');
     }
   } catch (e) {
     var list = $('#inboxList');
@@ -813,16 +819,24 @@ function renderInbox() {
   // Filter chip: semua / unread / darurat / selesai
   var f = state.inboxFilter || '';
   var items = semua.filter(function (it) {
-    if (f === 'unread') return !!it.unread;
-    if (f === 'darurat') return it.label === 'DARURAT';
+    // Tiket yang sudah Selesai tidak menyebalkan inbox — hanya lewat filter Selesai.
+    var bukanSelesai = it.status !== 'Selesai';
+    if (f === 'unread') return bukanSelesai && !!it.unread;
+    if (f === 'darurat') return bukanSelesai && it.label === 'DARURAT';
     if (f === 'selesai') return it.status === 'Selesai';
-    return true;
+    return bukanSelesai;
   });
 
   var count = $('#inboxCount');
   if (count) {
-    var nUnread = semua.filter(function (x) { return x.unread; }).length;
-    count.textContent = nUnread ? nUnread + ' belum dibaca' : semua.length + ' tiket';
+    if (f === 'selesai') {
+      var nS = semua.filter(function (x) { return x.status === 'Selesai'; }).length;
+      count.textContent = nS + ' selesai';
+    } else {
+      var aktifCount = semua.filter(function (x) { return x.status !== 'Selesai'; }).length;
+      var nUnread = semua.filter(function (x) { return x.status !== 'Selesai' && x.unread; }).length;
+      count.textContent = nUnread ? nUnread + ' belum dibaca' : aktifCount + ' tiket aktif';
+    }
   }
 
   // Kartu list: dot + tiket + waktu (baris 1), preview + unread (baris 2).
@@ -865,7 +879,7 @@ function renderPool() {
       '<div class="ib-baris"><span class="ib-dot"></span>' +
       '<strong>' + esc(p.no_tiket) + '</strong>' + darurat +
       '<span class="ib-waktu">' + waktuPendek(p.dibuat) + '</span></div>' +
-      '<div class="ib-baris"><span class="ib-preview">' + esc(p.kategori || 'Laporan') + ' · untuk ' + esc(p.untuk || '-') + '</span></div>' +
+      '<div class="ib-baris"><span class="ib-preview">' + esc(p.jenis === 'PM' ? 'Minat program' : (p.kategori || 'Laporan')) + ' · untuk ' + esc(p.untuk || '-') + '</span></div>' +
       '<div class="ib-baris"><button type="button" class="btn-kecil ib-ambil" data-tiket="' + esc(p.no_tiket) + '">Ambil penanganan</button></div>' +
       '</div>';
   });

@@ -34,7 +34,7 @@ router.get('/inbox', butuhKonselor, async (req, res) => {
     `).all(idSaya);
 
     const pm = await db.prepare(`
-      SELECT m.kode_lacak AS no_tiket, m.status, m.prioritas, m.dibuat,
+      SELECT m.kode_lacak AS no_tiket, m.status, m.prioritas, m.dibuat, m.dibaca,
              k.nama AS penangan, m.program,
              (SELECT COUNT(*) FROM pesan ps WHERE ps.no_tiket = m.kode_lacak) AS jumlah_pesan,
              (SELECT ps.isi_enc FROM pesan ps WHERE ps.no_tiket = m.kode_lacak ORDER BY ps.dibuat DESC LIMIT 1) AS isi_terakhir_enc,
@@ -78,7 +78,8 @@ router.get('/inbox', butuhKonselor, async (req, res) => {
         jumlah_pesan: Number(m.jumlah_pesan) || 0,
         pesan_ts: Number(m.pesan_terakhir_ts) || Number(m.dibuat),
         dibuat: Number(m.dibuat),
-        unread: 0 // minat belum punya tracking dibaca — sederhana dulu
+        // unread sama seperti PN: pesan terakhir dari user + belum dibuka.
+        unread: (!m.dibaca && lastDari === 'user') ? 1 : 0
       });
     }
     // urutkan: yang ada pesan terbaru dulu
@@ -96,6 +97,8 @@ router.post('/inbox/:tiket/baca', butuhKonselor, async (req, res) => {
     const tiket = String(req.params.tiket || '').toUpperCase();
     if (tiket.startsWith('PN-')) {
       await db.prepare('UPDATE pengaduan SET dibaca=1 WHERE no_tiket=$1').run(tiket);
+    } else if (tiket.startsWith('PM-')) {
+      await db.prepare('UPDATE minat_program SET dibaca=1 WHERE kode_lacak=$1').run(tiket);
     }
     res.json({ ok: true });
   } catch (e) {
@@ -109,6 +112,8 @@ router.delete('/inbox/:tiket/baca', butuhKonselor, async (req, res) => {
     const tiket = String(req.params.tiket || '').toUpperCase();
     if (tiket.startsWith('PN-')) {
       await db.prepare('UPDATE pengaduan SET dibaca=0 WHERE no_tiket=$1').run(tiket);
+    } else if (tiket.startsWith('PM-')) {
+      await db.prepare('UPDATE minat_program SET dibaca=0 WHERE kode_lacak=$1').run(tiket);
     }
     res.json({ ok: true });
   } catch (e) {

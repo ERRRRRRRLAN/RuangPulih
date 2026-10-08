@@ -74,8 +74,12 @@ router.post('/', async (req, res) => {
       .run(tiket, pengirim, pengirimId, encrypt(String(isi)), sekarang);
 
     // Pesan user masuk → tiket jadi "belum dibaca" lagi di inbox konselor.
-    if (pengirim === 'user' && tiket.startsWith('PN-')) {
-      db.prepare('UPDATE pengaduan SET dibaca=0 WHERE no_tiket=$1').run(tiket).catch(() => {});
+    if (pengirim === 'user') {
+      if (tiket.startsWith('PN-')) {
+        db.prepare('UPDATE pengaduan SET dibaca=0 WHERE no_tiket=$1').run(tiket).catch(() => {});
+      } else if (tiket.startsWith('PM-')) {
+        db.prepare('UPDATE minat_program SET dibaca=0 WHERE kode_lacak=$1').run(tiket).catch(() => {});
+      }
     }
 
     // Trigger PG otomatis buat chat_event → Realtime push ke semua subscriber.
