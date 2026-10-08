@@ -144,7 +144,7 @@ body { background: var(--bg); color: var(--text); }
   .inbox-shell { min-height: 0; padding: 0; }
   .inbox-side { display: flex; flex-direction: column; }
   .inbox-side.chat-terbuka { display: none; }          /* list sembunyi saat chat buka */
-  .inbox-chat { position: fixed; inset: 0; z-index: 80; background: var(--bg); padding: 10px 12px 12px; }
+  .inbox-chat { position: fixed; inset: 0; z-index: 80; background: var(--bg); padding: 10px 12px 12px; display: none; }
   .inbox-chat.chat-terbuka { display: flex; }
   .inbox-kosong { padding-top: 40px; }
   .ib-back { display: inline-flex; }
