@@ -561,8 +561,8 @@ body { background: var(--bg); color: var(--text); }
 /* Inbox 1 kolom: list di atas (maks 280px), chat memenuhi lebar di bawah. */
 @media (max-width: 900px) {
   .inbox-shell { grid-template-columns: 1fr; }
-  .inbox-side { border-right: none; padding-right: 0; max-height: 280px; }
-  .inbox-chat { min-height: 400px; height: 100%; }
+  .inbox-side { border-right: none; padding-right: 0; max-height: 340px; }
+  .inbox-chat { min-height: 480px; height: 100%; }
   /* Nav: tab bisa digeser horizontal, snap per-tab, scrollbar disembunyikan. */
   .dash-nav {
     overflow-x: auto; scroll-snap-type: x proximity;
@@ -575,31 +575,79 @@ body { background: var(--bg); color: var(--text); }
   }
 }
 @media (max-width: 600px) {
-  /* Statistik 2 kolom, kartu lebih kompak. */
-  .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .stat-card { padding: 14px 12px; }
-  /* Pool antrian satu kolom. */
+  /* ---- INBOX MOBILE ---- */
+  /* List item: 1 baris kode + badge, baris 2 preview — tidak gepeng. */
+  .inbox-shell { padding: 12px; gap: 12px; }
+  .inbox-side-head h2 { font-size: 1rem; }
+  .inbox-filter { gap: 5px; }
+  .inbox-filter-btn { padding: 7px 11px; font-size: .72rem; }
+  .inbox-list { padding: 0 2px; gap: 3px; }
+  .ib-item { padding: 9px 10px; }
+  .ib-baris { gap: 7px; }
+  .ib-baris strong { font-size: .8rem; }
+  .ib-waktu { font-size: .68rem; padding-left: 4px; }
+  .ib-preview { font-size: .74rem; }
+  .ib-unread { min-width: 18px; height: 18px; font-size: .65rem; padding: 0 6px; }
+  .ib-tag { font-size: .6rem; padding: 2px 7px; }
+  /* Chat kanan: header lebih kompak, input full lebar. */
+  .inbox-chat-head { padding-bottom: 8px; }
+  .ib-judul strong { font-size: .88rem; }
+  .ib-meta { font-size: .72rem; }
+  .inbox-aktif .chat-area { min-height: 260px; }
+
+  /* ---- HILANGKAN STAT CARDS DI MOBILE (ga penting di layar kecil) ---- */
+  .stat-grid { display: none; }
+
+  /* ---- POOL ANTRIAN ---- */
   .pool-list { grid-template-columns: 1fr; }
-  /* Balasan cepat (inbox & modal detail): lebih kecil, teks bisa patah baris. */
-  #ibQuick, #mdQuick { padding: 8px 12px; }
+  .ib-item-pool { padding: 12px; }
+  .ib-ambil { width: 100%; justify-content: center; }
+
+  /* ---- RUJUKAN: scroll horizontal, header tetap keliatan ---- */
+  #panelRujukan .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #panelRujukan .dash-table { min-width: 640px; font-size: .78rem; }
+  #panelRujukan .dash-table th { white-space: nowrap; }
+  #panelRujukan .dash-table td { white-space: nowrap; }
+
+  /* ---- INBOX FILTER CHIP: scroll horizontal, tidak push konten ---- */
+  .inbox-filter { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; padding-bottom: 2px; }
+  .inbox-filter::-webkit-scrollbar { display: none; }
+
+  /* ---- BALASAN CEPAT ---- */
+  #ibQuick, #mdQuick { padding: 8px 10px; }
   .chat-quick-konselor .chip {
     font-size: .72rem; max-width: 100%;
-    overflow-wrap: break-word; white-space: normal;
+    overflow-wrap: break-word; white-space: normal; min-height: 36px;
   }
-  /* Touch target minimal 36px untuk semua tombol, termasuk di dalam <td>. */
-  .btn-buka, .btn-kecil, .dash-ghost, .dash-ghost-kecil, .inbox-filter-btn,
-  .dash-table td .btn-kecil, .dash-table td .btn-buka { min-height: 36px; }
-  /* Modal mengikuti viewport kecil, isi bisa digulir. */
+
+  /* ---- MODAL ---- */
   .modal-box {
-    width: 95vw; max-height: 90vh; overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    width: 97vw; max-height: 92vh; overflow-y: auto;
+    -webkit-overflow-scrolling: touch; margin: 4vh auto;
   }
-  #modalStatusRujuk .modal-box { width: 95vw; }
-  #modalRujuk .modal-box { width: 95vw; }
+  #modalStatusRujuk .modal-box,
+  #modalRujuk .modal-box { width: 97vw; }
   .neo-select-trigger { padding: 10px 14px; }
+  .modal-body { padding: 14px; }
+  .modal-head h2 { font-size: .95rem; }
+  .modal-head { padding: 10px 14px; }
+
+  /* ---- TOMBOL: touch target min 36px ---- */
+  .btn-buka, .btn-kecil, .dash-ghost, .dash-ghost-kecil, .inbox-filter-btn,
+  .dash-table td .btn-kecil, .dash-table td .btn-buka,
+  .neo-select-trigger, .neo-select-option,
+  #ibInputChat, #ibKirim, #mdAmbil { min-height: 36px; }
+
+  /* ---- PANEL LAIN: spacing kompak ---- */
+  .dash-main { padding: 16px 12px 70px; }
+  .panel-head h2 { font-size: 1.05rem; }
+  .form-akun { padding: 14px; gap: 10px; }
+  .dash-table { font-size: .78rem; }
+  .dash-table th { padding: 10px 10px 8px; }
+  .dash-table td { padding: 10px 10px; }
 }
 /* Layar pendek (iPhone SE): shell tidak memaksa tinggi besar. */
 @media (max-height: 700px) {
   .inbox-shell { min-height: auto; }
-  .inbox-chat { min-height: 320px; }
+  .inbox-chat { min-height: 260px; }
 }
