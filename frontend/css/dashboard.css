@@ -556,3 +556,50 @@ body { background: var(--bg); color: var(--text); }
   min-height: 96px;
 }
 #modalRujuk .neo-select { width: 100%; }
+
+/* ===================== MOBILE RESPONSIVE (dashboard) ===================== */
+/* Inbox 1 kolom: list di atas (maks 280px), chat memenuhi lebar di bawah. */
+@media (max-width: 900px) {
+  .inbox-shell { grid-template-columns: 1fr; }
+  .inbox-side { border-right: none; padding-right: 0; max-height: 280px; }
+  .inbox-chat { min-height: 400px; height: 100%; }
+  /* Nav: tab bisa digeser horizontal, snap per-tab, scrollbar disembunyikan. */
+  .dash-nav {
+    overflow-x: auto; scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .dash-nav::-webkit-scrollbar { display: none; }
+  .dash-tab, .dash-ghost {
+    min-width: fit-content; padding: 8px 14px; font-size: .8rem;
+    scroll-snap-align: start;
+  }
+}
+@media (max-width: 600px) {
+  /* Statistik 2 kolom, kartu lebih kompak. */
+  .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .stat-card { padding: 14px 12px; }
+  /* Pool antrian satu kolom. */
+  .pool-list { grid-template-columns: 1fr; }
+  /* Balasan cepat (inbox & modal detail): lebih kecil, teks bisa patah baris. */
+  #ibQuick, #mdQuick { padding: 8px 12px; }
+  .chat-quick-konselor .chip {
+    font-size: .72rem; max-width: 100%;
+    overflow-wrap: break-word; white-space: normal;
+  }
+  /* Touch target minimal 36px untuk semua tombol, termasuk di dalam <td>. */
+  .btn-buka, .btn-kecil, .dash-ghost, .dash-ghost-kecil, .inbox-filter-btn,
+  .dash-table td .btn-kecil, .dash-table td .btn-buka { min-height: 36px; }
+  /* Modal mengikuti viewport kecil, isi bisa digulir. */
+  .modal-box {
+    width: 95vw; max-height: 90vh; overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  #modalStatusRujuk .modal-box { width: 95vw; }
+  #modalRujuk .modal-box { width: 95vw; }
+  .neo-select-trigger { padding: 10px 14px; }
+}
+/* Layar pendek (iPhone SE): shell tidak memaksa tinggi besar. */
+@media (max-height: 700px) {
+  .inbox-shell { min-height: auto; }
+  .inbox-chat { min-height: 320px; }
+}

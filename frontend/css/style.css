@@ -1289,3 +1289,16 @@ body.chat-disembunyikan .chat-unhide { display: inline-flex; }
   .how-body { flex: 1; min-width: 0; }
   .how-body p { font-size: .78rem; }
 }
+
+/* ===================== MOBILE RESPONSIVE (quick replies & touch) ===================== */
+@media (max-width: 600px) {
+  /* Balasan cepat: chip lebih kecil, teks panjang patah baris, tidak meluber. */
+  .chat-quick .chip, .chat-quick-konselor .chip {
+    font-size: .72rem; max-width: 100%;
+    overflow-wrap: break-word; white-space: normal;
+  }
+  /* Touch target minimal 36px untuk tombol. */
+  .btn-mini, .btn-ghost, .chip { min-height: 36px; }
+  /* Select trigger lebih kompak di layar kecil. */
+  .neo-select-trigger { padding: 10px 14px; }
+}

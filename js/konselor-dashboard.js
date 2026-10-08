@@ -871,6 +871,10 @@ function renderInbox() {
   list.innerHTML = html || '<p class="inbox-filter-kosong">Tidak ada tiket pada filter ini.</p>';
   $$('#inboxList .ib-item').forEach(function (b) {
     b.addEventListener('click', function () { bukaInboxChat(b.dataset.tiket); });
+    // Mobile: pastikan tiket aktif selalu terlihat di list setelah render ulang.
+    if (b.dataset.tiket === state.tiketAktif) {
+      setTimeout(function () { b.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 50);
+    }
   });
 }
 
@@ -895,6 +899,14 @@ function renderPool() {
       '</div>';
   });
   wrap.innerHTML = html;
+  // Mobile: pool tampil sebagai list kartu vertikal, bukan grid multi-kolom.
+  if (window.innerWidth < 640) {
+    wrap.style.display = 'flex';
+    wrap.style.flexDirection = 'column';
+  } else {
+    wrap.style.display = '';
+    wrap.style.flexDirection = '';
+  }
   $$('#poolList .ib-ambil').forEach(function (b) {
     b.addEventListener('click', function () { ambilDariPool(b.dataset.tiket); });
   });
@@ -927,6 +939,24 @@ async function bukaInboxChat(tiket) {
   state.modeMinat = tiket.indexOf('PM-') === 0;
   $('#inboxKosong').hidden = true;
   $('#inboxAktif').hidden = false;
+  // Mobile (<640px): panel chat menutupi list inbox — sediakan tombol kembali minimal.
+  if (window.innerWidth < 640) {
+    var existingBack = $('#ibBackBtn');
+    if (!existingBack) {
+      var backBtn = document.createElement('button');
+      backBtn.id = 'ibBackBtn';
+      backBtn.textContent = '< Kembali ke inbox';
+      backBtn.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--accent);color:white;border:none;padding:14px;font:inherit;font-weight:700;display:block';
+      backBtn.addEventListener('click', function () {
+        var b = $('#ibBackBtn'); if (b) b.remove();
+        $('#ibChat').style.paddingBottom = '';
+        $('#inboxAktif').hidden = true;
+        $('#inboxKosong').hidden = false;
+      });
+      document.body.appendChild(backBtn);
+    }
+    $('#ibChat').style.paddingBottom = '60px';
+  }
   $('#ibTiket').textContent = tiket;
   $('#ibChat').innerHTML = '';
   var it = (state.inbox || []).find(function (x) { return x.tiket === tiket; });
@@ -935,6 +965,11 @@ async function bukaInboxChat(tiket) {
   // Quick replies sesuai konteks
   var mode = state.modeMinat ? 'minat' : (it && it.label === 'DARURAT' ? 'darurat' : 'biasa');
   isiQuickInbox(mode);
+  // Mobile: langsung posisikan chat di dasar saat pertama dibuka.
+  if (window.innerWidth < 600) {
+    var ibc = $('#ibChat');
+    ibc.scrollTop = ibc.scrollHeight;
+  }
   // tandai dibaca
   try { await api('/api/dashboard/inbox/' + encodeURIComponent(tiket) + '/baca', { method: 'POST' }); } catch (e2) { /* non-kritis */ }
   renderInbox();
@@ -983,6 +1018,8 @@ function bubbleInbox(teks, arah, ts) {
   if (arah === 'out' || arah === 'in') b.setAttribute('data-dari', arah === 'out' ? 'Anda' : 'Pelapor');
   b.textContent = teks;
   if (ts != null) b.setAttribute('data-ts', String(ts));
+  // Mobile: bubble lebih lebar supaya teks panjang tidak makin sesak.
+  if (window.innerWidth < 640) b.style.maxWidth = '85%';
   area.appendChild(b);
   area.scrollTop = area.scrollHeight;
 }
@@ -1017,9 +1054,16 @@ function isiQuickInbox(mode) {
   var panel = $('#ibQuick');
   if (!panel) return;
   var daftar = QUICK_TEKS[mode] || QUICK_TEKS.biasa;
+  var chipMobil = window.innerWidth < 640;
   panel.innerHTML = daftar.map(function (t) {
     return '<button type="button" class="chip" data-q="' + esc(t) + '">' + esc(t.length > 52 ? t.slice(0, 52) + '…' : t) + '</button>';
   }).join('');
+  if (chipMobil) {
+    panel.querySelectorAll('.chip').forEach(function (c) {
+      c.style.padding = '6px 10px';
+      c.style.fontSize = '.72rem';
+    });
+  }
   panel.setAttribute('data-konteks', mode);
   panel.querySelectorAll('.chip').forEach(function (c) {
     c.addEventListener('click', async function () {
