@@ -516,15 +516,6 @@ function sambungDashboardWS() {
       }
     }
   });
-  // FALLBACK PENTING: RLS chat_event sekarang membatasi role anon, jadi
-  // event tipe='pesan' tidak sampai ke dashboard via Realtime (lihat
-  // migrations/002-tutup-chat-event.sql). Polling aman via cookie konselor
-  // memastikan notifikasi chat masuk tetap jalan.
-  if (!state.pollInbox) {
-    state.pollInbox = setInterval(function () {
-      if ($('#panelAntrian') && !$('#panelAntrian').hidden) muatInbox();
-    }, 15000);
-  }
 }
 
 function notifLive(teks) {
@@ -798,17 +789,17 @@ function waktuPendek(ts) {
 
 async function muatInbox() {
   try {
-    var data = await api('/api/dashboard/inbox');
-    state.inbox = data.items || [];
-    // Pool tiket belum diambil siapa pun (ditangani_oleh NULL) — tampil di
-    // section terpisah di bawah list pribadi. Bisa diambil manual dari sini.
-    var pool = await api('/api/dashboard/antrian?limit=100');
-    // Pool = PN + PM yang belum ditangani siapa pun, status masih jalan.
-    var poolPm = await api('/api/dashboard/minat?limit=100');
-    state.poolBelumDiambil = (pool.items || [])
+    // Parallel: inbox + pool PN + pool PM sekali jalan, tidak menunggu berturut-turut.
+    var hasil = await Promise.all([
+      api('/api/dashboard/inbox'),
+      api('/api/dashboard/antrian?limit=100'),
+      api('/api/dashboard/minat?limit=100')
+    ]);
+    state.inbox = (hasil[0] && hasil[0].items) || [];
+    state.poolBelumDiambil = ((hasil[1] && hasil[1].items) || [])
       .filter(function (p) { return p.ditangani_oleh == null; })
       .map(function (p) { return { no_tiket: p.no_tiket, jenis: 'PN', kategori: p.kategori, untuk: p.untuk, darurat: p.darurat, dibuat: p.dibuat }; })
-      .concat((poolPm.items || [])
+      .concat(((hasil[2] && hasil[2].items) || [])
         .filter(function (m) { return m.ditangani_oleh == null && m.status !== 'Selesai'; })
         .map(function (m) { return { no_tiket: m.kode_lacak, jenis: 'PM', kategori: m.program, untuk: m.panggilan || '-', darurat: m.prioritas === 'Tinggi', dibuat: m.dibuat }; }));
     renderInbox();
@@ -954,11 +945,9 @@ async function bukaInboxChat(tiket) {
   if (window.innerWidth <= 640) {
     $('.inbox-side').classList.add('chat-terbuka');
     $('#inboxChat').classList.add('chat-terbuka');
-    var ibc0 = $('#ibChat');
-    ibc0.scrollTop = ibc0.scrollHeight;
   }
   $('#ibTiket').textContent = tiket;
-  $('#ibChat').innerHTML = '';
+  $('#ibChat').innerHTML = '<p class="dash-empty">Memuat percakapan…</p>';
   var it = (state.inbox || []).find(function (x) { return x.tiket === tiket; });
   $('#ibMeta').textContent = it ? (it.jenis === 'PM' ? 'Minat program' + (it.label ? ' · ' + it.label : '') : 'Laporan') + (it.penangan ? ' · ' + it.penangan : ' · belum ditugaskan') : '';
   $('#ibStatus').innerHTML = it ? badge(it.status) : '';
@@ -995,6 +984,9 @@ function sambungWSInbox(tiket) {
     (pesan || []).forEach(function (p) {
       bubbleInbox(p.isi, p.pengirim === 'user' ? 'in' : 'out', p.dibuat);
     });
+    // Scroll ke bawah HABIS render history (sebelumnya kecep peng: empty).
+    var ibc = $('#ibChat');
+    ibc.scrollTop = ibc.scrollHeight;
   }).catch(function () { bubbleInbox('Gagal memuat riwayat chat.', 'in'); });
 
   window.RuangPulihRT.subscribe(tiket, function (ev) {
@@ -1011,6 +1003,8 @@ function sambungWSInbox(tiket) {
           bubbleInbox(p.isi, p.pengirim === 'user' ? 'in' : 'out', p.dibuat);
         });
         hapusMengetikInbox();
+        var ibc2 = $('#ibChat');
+        ibc2.scrollTop = ibc2.scrollHeight;
       }).catch(function () { /* coba lagi nanti */ });
       muatInbox();
       return;
