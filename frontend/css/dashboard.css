@@ -114,6 +114,15 @@ body { background: var(--bg); color: var(--text); }
 .ib-judul strong { font-size: .95rem; }
 .ib-meta { display: block; font-size: .78rem; color: var(--text-mute); margin-top: 2px; }
 .ib-aksi { display: flex; align-items: center; gap: 10px; flex: none; }
+/* Tombol back chat (gaya WhatsApp) — hanya tampil di mobile */
+.ib-back {
+  display: none; width: 38px; height: 38px; flex: none;
+  font-size: 1.5rem; line-height: 1; font-weight: 700;
+  color: var(--text); background: var(--surface); border: none;
+  border-radius: 50%; cursor: pointer; box-shadow: var(--out-sm);
+  align-items: center; justify-content: center; padding: 0 0 2px;
+}
+.ib-back:active { box-shadow: var(--in); }
 /* Chat area mengisi sisa tinggi shell — bukan tinggi tetap 300px */
 .inbox-aktif .chat-area { flex: 1; min-height: 300px; }
 @media (max-width: 1100px) {
@@ -122,9 +131,28 @@ body { background: var(--bg); color: var(--text); }
   .ib-item { padding: 10px; }
 }
 @media (max-width: 900px) {
-  .inbox-shell { grid-template-columns: 1fr; }
-  .inbox-side { border-right: none; padding-right: 0; max-height: 340px; }
-  .inbox-chat { min-height: 480px; }
+  .inbox-shell { grid-template-columns: 1fr; padding: 0; gap: 0; border-radius: 0; box-shadow: none; }
+  .inbox-side { border-right: none; padding: 0; max-height: none; }
+  .inbox-chat { min-height: 0; }
+  .inbox-filter { padding: 0 12px 10px; }
+  .inbox-list { padding: 0 12px 16px; }
+  .inbox-side-head { padding: 12px 12px 10px; }
+}
+/* Mobile: chat full-screen menumpuk list (gaya WhatsApp). */
+@media (max-width: 640px) {
+  #panelAntrian { padding: 0; }
+  .inbox-shell { min-height: 0; padding: 0; }
+  .inbox-side { display: flex; flex-direction: column; }
+  .inbox-side.chat-terbuka { display: none; }          /* list sembunyi saat chat buka */
+  .inbox-chat { position: fixed; inset: 0; z-index: 80; background: var(--bg); padding: 10px 12px 12px; }
+  .inbox-chat.chat-terbuka { display: flex; }
+  .inbox-kosong { padding-top: 40px; }
+  .ib-back { display: inline-flex; }
+  .inbox-chat-head { padding: 6px 2px 10px; }
+  .inbox-aktif .chat-area { min-height: 0; }
+  .chat-quick-konselor { margin: 0; }
+  .chat-form { margin: 8px 0 0; }
+  .chat-form input { min-height: 42px; }
 }
 
 /* ---------- Pool antrian (tab terpisah) ---------- */

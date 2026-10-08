@@ -116,6 +116,8 @@ async function api(path, opts) {
   $('#mdFormChat').addEventListener('submit', kirimChat);
   $('#ibFormChat').addEventListener('submit', kirimChatInbox);
   $('#ibDetail').addEventListener('click', bukaDetailDariInbox);
+  var ibBackBtn = $('#ibBack');
+  if (ibBackBtn) ibBackBtn.addEventListener('click', tutupInboxChat);
   $$('.inbox-filter-btn').forEach(function (b) {
     b.addEventListener('click', function () {
       state.inboxFilter = b.getAttribute('data-f') || '';
@@ -939,23 +941,12 @@ async function bukaInboxChat(tiket) {
   state.modeMinat = tiket.indexOf('PM-') === 0;
   $('#inboxKosong').hidden = true;
   $('#inboxAktif').hidden = false;
-  // Mobile (<640px): panel chat menutupi list inbox — sediakan tombol kembali minimal.
-  if (window.innerWidth < 640) {
-    var existingBack = $('#ibBackBtn');
-    if (!existingBack) {
-      var backBtn = document.createElement('button');
-      backBtn.id = 'ibBackBtn';
-      backBtn.textContent = '< Kembali ke inbox';
-      backBtn.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--accent);color:white;border:none;padding:14px;font:inherit;font-weight:700;display:block';
-      backBtn.addEventListener('click', function () {
-        var b = $('#ibBackBtn'); if (b) b.remove();
-        $('#ibChat').style.paddingBottom = '';
-        $('#inboxAktif').hidden = true;
-        $('#inboxKosong').hidden = false;
-      });
-      document.body.appendChild(backBtn);
-    }
-    $('#ibChat').style.paddingBottom = '60px';
+  // Mobile (gaya WhatsApp): chat full-screen menumpuk list; back via header.
+  if (window.innerWidth <= 640) {
+    $('.inbox-side').classList.add('chat-terbuka');
+    $('#inboxChat').classList.add('chat-terbuka');
+    var ibc0 = $('#ibChat');
+    ibc0.scrollTop = ibc0.scrollHeight;
   }
   $('#ibTiket').textContent = tiket;
   $('#ibChat').innerHTML = '';
@@ -974,6 +965,18 @@ async function bukaInboxChat(tiket) {
   try { await api('/api/dashboard/inbox/' + encodeURIComponent(tiket) + '/baca', { method: 'POST' }); } catch (e2) { /* non-kritis */ }
   renderInbox();
   sambungWSInbox(tiket);
+}
+
+// Tombol back di header chat (mobile): tutup chat, kembali ke list inbox.
+function tutupInboxChat() {
+  var side = $('.inbox-side');
+  var chat = $('#inboxChat');
+  if (side) side.classList.remove('chat-terbuka');
+  if (chat) chat.classList.remove('chat-terbuka');
+  $('#inboxAktif').hidden = true;
+  $('#inboxKosong').hidden = false;
+  state.tiketAktif = null;
+  renderInbox();
 }
 
 function sambungWSInbox(tiket) {

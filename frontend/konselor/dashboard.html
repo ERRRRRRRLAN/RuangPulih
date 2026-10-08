@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
-  <link rel="stylesheet" href="/css/dashboard.css?v=11">
+  <link rel="stylesheet" href="/css/dashboard.css?v=12">
 </head>
 <body>
   <header class="dash-top">
@@ -63,6 +63,7 @@
           </div>
           <div class="inbox-aktif" id="inboxAktif" hidden>
             <header class="inbox-chat-head">
+              <button type="button" id="ibBack" class="ib-back" aria-label="Kembali ke inbox">‹</button>
               <div class="ib-judul">
                 <strong id="ibTiket">-</strong>
                 <span id="ibMeta" class="ib-meta">-</span>
@@ -341,6 +342,6 @@
   <script src="/assets/supabase.js"></script>
   <script>if (typeof window.supabase === 'undefined') document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"><\/script>');</script>
   <script src="/js/realtime.js"></script>
-  <script src="/js/konselor-dashboard.js?v=10"></script>
+  <script src="/js/konselor-dashboard.js?v=12"></script>
 </body>
 </html>
