@@ -94,6 +94,10 @@ async function api(path, opts) {
   }
   if (state.saya.peran === 'admin') $('#tabAdmin').hidden = false;
   muatStatistik();
+  // Cache lokal: render list SEKARANG dari data tersimpan, baru ambil data baru
+  // di background. Di serverless Vercel (cold start ~1-3s), list langsung
+  // kelihatan tanpa nunggu API.
+  if (!terapkanCacheInbox()) tampilkanLoadingInbox();
   muatInbox();
   sambungDashboardWS();
   $('#btnLogout').addEventListener('click', logout);
@@ -147,6 +151,7 @@ async function api(path, opts) {
 })();
 
 async function logout() {
+  try { sessionStorage.removeItem('rp_inbox_cache'); } catch (e) { /* abaikan */ }
   try { await api('/api/auth/logout', { method: 'POST' }); } catch (e) { /* abaikan */ }
   location.href = '/konselor/masuk';
 }
@@ -787,6 +792,36 @@ function waktuPendek(ts) {
     : d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
 }
 
+/* ---------- cache inbox (serverless cold-start mitigation) ---------- */
+// Data dashboard disimpan ke sessionStorage pas berhasil dimuat. Saat halaman
+// dibuka/kembali, list langsung dirender dari cache (0 detik), baru data
+// fresh dimuat di background. sessionStorage (bukan localStorage) biar
+// hilang saat tab tutup — tidak ada data chat mengendap setelah logout.
+function simpanCacheInbox() {
+  try {
+    sessionStorage.setItem('rp_inbox_cache', JSON.stringify({
+      inbox: state.inbox, pool: state.poolBelumDiambil, t: Date.now()
+    }));
+  } catch (e) { /* storage penuh/private mode — bukan kritis */ }
+}
+function terapkanCacheInbox() {
+  try {
+    var raw = sessionStorage.getItem('rp_inbox_cache');
+    if (!raw) return false;
+    var c = JSON.parse(raw);
+    if (!c || !Array.isArray(c.inbox)) return false;
+    state.inbox = c.inbox;
+    state.poolBelumDiambil = c.pool || [];
+    renderInbox();
+    renderPool();
+    return true;
+  } catch (e) { return false; }
+}
+function tampilkanLoadingInbox() {
+  var list = $('#inboxList');
+  if (list) list.innerHTML = '<p class="dash-empty">Memuat inbox…</p>';
+}
+
 async function muatInbox() {
   try {
     // Parallel: inbox + pool PN + pool PM sekali jalan, tidak menunggu berturut-turut.
@@ -802,6 +837,7 @@ async function muatInbox() {
       .concat(((hasil[2] && hasil[2].items) || [])
         .filter(function (m) { return m.ditangani_oleh == null && m.status !== 'Selesai'; })
         .map(function (m) { return { no_tiket: m.kode_lacak, jenis: 'PM', kategori: m.program, untuk: m.panggilan || '-', darurat: m.prioritas === 'Tinggi', dibuat: m.dibuat }; }));
+    simpanCacheInbox();
     renderInbox();
     renderPool();
     var pc = $('#poolCount');
