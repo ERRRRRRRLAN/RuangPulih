@@ -22,7 +22,7 @@
     <nav class="dash-nav" aria-label="Navigasi dashboard">
       <button type="button" id="tabAntrian" class="dash-tab active">Inbox</button>
       <button type="button" id="tabPool" class="dash-tab">Antrian <span class="tab-badge" id="poolCount" hidden></span></button>
-      <button type="button" id="tabMinat" class="dash-tab">Minat Program</button>
+
       <button type="button" id="tabRujukan" class="dash-tab">Rujukan</button>
       <button type="button" id="tabAdmin" class="dash-tab" hidden>Admin</button>
       <button type="button" id="btnLogout" class="dash-ghost">Keluar</button>
@@ -91,6 +91,11 @@
         <p class="panel-sub">Tiket yang belum ditangani konselor mana pun. Ambil untuk memindahkannya ke inbox Anda.</p>
       </div>
       <div class="pool-wrap">
+        <div class="inbox-filter" role="tablist" aria-label="Filter jenis antrian">
+          <button type="button" class="inbox-filter-btn aktif" data-j="">Semua</button>
+          <button type="button" class="inbox-filter-btn" data-j="PN">Laporan (PN)</button>
+          <button type="button" class="inbox-filter-btn" data-j="PM">Minat Program (PM)</button>
+        </div>
         <div class="pool-list" id="poolList" aria-label="Tiket belum diambil"></div>
         <p id="poolKosong" class="dash-empty" hidden>Tidak ada tiket baru yang menunggu penanganan.</p>
       </div>

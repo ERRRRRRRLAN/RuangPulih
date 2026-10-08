@@ -97,11 +97,9 @@ async function api(path, opts) {
   muatInbox();
   sambungDashboardWS();
   $('#btnLogout').addEventListener('click', logout);
-  $('#filterMinat').addEventListener('change', muatMinat);
   $('#filterRujukan').addEventListener('change', muatRujukan);
   $('#tabAntrian').addEventListener('click', function () { gantiTab('antrian'); });
   $('#tabPool').addEventListener('click', function () { gantiTab('pool'); });
-  $('#tabMinat').addEventListener('click', function () { gantiTab('minat'); });
   $('#tabRujukan').addEventListener('click', function () { gantiTab('rujukan'); });
   $('#mdAmbil').addEventListener('click', function () {
     if (state.tiketAktif) ambilMinat(state.tiketAktif);
@@ -125,6 +123,14 @@ async function api(path, opts) {
       renderInbox();
     });
   });
+  // Filter jenis di tab Antrian (pool)
+  $$('.pool-wrap .inbox-filter-btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      poolFilter = b.getAttribute('data-j') || '';
+      $$('.pool-wrap .inbox-filter-btn').forEach(function (x) { x.classList.toggle('aktif', x === b); });
+      renderPool();
+    });
+  });
   $('#mdInputChat').addEventListener('input', kirimTyping);
   siapkanNeoSelect();
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { $('#modalStatusRujuk').hidden = true; tutupModalRujuk(); tutupModal(); } });
@@ -146,12 +152,14 @@ async function logout() {
 function gantiTab(t) {
   $('#tabAntrian').classList.toggle('active', t === 'antrian');
   $('#tabPool').classList.toggle('active', t === 'pool');
-  $('#tabMinat').classList.toggle('active', t === 'minat');
+  var tabMinat = $('#tabMinat');
+  if (tabMinat) tabMinat.classList.toggle('active', t === 'minat');
   $('#tabRujukan').classList.toggle('active', t === 'rujukan');
   $('#tabAdmin').classList.toggle('active', t === 'admin');
   $('#panelAntrian').hidden = t !== 'antrian';
   $('#panelPool').hidden = t !== 'pool';
-  $('#panelMinat').hidden = t !== 'minat';
+  var pm = $('#panelMinat');
+  if (pm) pm.hidden = t !== 'minat';
   $('#panelRujukan').hidden = t !== 'rujukan';
   $('#panelAdmin').hidden = t !== 'admin';
   if (t === 'antrian') muatInbox();
@@ -867,10 +875,13 @@ function renderInbox() {
 }
 
 // Tab Antrian: pool tiket belum diambil siapa pun, halaman terpisah dari inbox.
+var poolFilter = ''; // '', 'PN', atau 'PM'
 function renderPool() {
   var wrap = $('#poolList');
   if (!wrap) return;
-  var pool = state.poolBelumDiambil || [];
+  var pool = (state.poolBelumDiambil || []).filter(function (p) {
+    return poolFilter === '' || p.jenis === poolFilter;
+  });
   $('#poolKosong').hidden = pool.length > 0;
   var html = '';
   pool.forEach(function (p) {
