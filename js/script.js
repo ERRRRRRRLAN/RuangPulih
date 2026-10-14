@@ -1195,78 +1195,136 @@
     btnSend.disabled = true;
 
     // ===== MODE AI (Sahabat AI) =====
-    if (window.__chatMode === 'ai') {
-      cekKrisis(teks);  // deteksi krisis sejak awal dari pesan user
-      // Sesi AI (sessionStorage — hilang saat browser ditutup).
-      var sesiId = null;
-      // sesi di memori — refresh halaman = otomatis sesi baru
-      sesiId = window.__aiSesi || null;
+
+    {
+      // Sesi AI (in-memory — refresh = sesi fresh)
+      var sesiId = window.__aiSesi || null;
+      var headers = { 'Content-Type': 'application/json' };
+      var payload = { isi: teks, mode: 'ngobrol' };
+      if (sesiId) payload.sesi = sesiId;
+      if (tiket) {
+        try { headers['Authorization'] = 'Bearer ' + await window.RuangPulihRT.mintaAnonToken(tiket); } catch (e2) {}
+      }
+
+      // Bubble AI live — text berubah saat chunk masuk (efek mengetik nyata).
+      var divAi = document.createElement('div');
+      divAi.className = 'msg in';
+      divAi.setAttribute('data-dari', 'Sahabat AI');
+      var pAi = document.createElement('p');
+      pAi.textContent = '';
+      var tA = document.createElement('span');
+      tA.className = 'mtime';
+      tA.textContent = jam();
+      divAi.appendChild(pAi); divAi.appendChild(tA);
+      chatBody.appendChild(divAi);
+      chatBody.scrollTop = chatBody.scrollHeight;
+
+      // Status dinamis: fase dari server (berpikir/menulis) + fallback timer.
+      var stLabel = document.createElement('span');
+      stLabel.className = 'typing-label';
+      stLabel.textContent = 'Sahabat AI membaca ceritamu...';
+      divAi.insertBefore(stLabel, pAi);
+      var bs = document.createElement('span');
+      bs.className = 'dots';
+      bs.innerHTML = '<i></i><i></i><i></i>';
+      divAi.insertBefore(bs, pAi);
+
       try {
-        var payload = { isi: teks, mode: 'ngobrol' };
-        if (sesiId) payload.sesi = sesiId;
-        var headers = { 'Content-Type': 'application/json' };
-        if (tiket) {
-          headers['Authorization'] = 'Bearer ' + await window.RuangPulihRT.mintaAnonToken(tiket);
+        var res = await fetch('/api/ai/chat/stream', { method: 'POST', headers: headers, body: JSON.stringify(payload) });
+        if (!res.ok) {
+          var je = await res.json().catch(function(){return null;});
+          throw new Error((je && je.error) || 'AI tidak bisa dihubungi');
         }
-        // Animasi typing dinamis — label berubah sesuai durasi riil proses model.
-        tampilkanMengetik('Sahabat AI membaca ceritamu...');
-        var fase = [
-          [6000,  'Sahabat AI memahami isi ceritamu...'],
-          [12000, 'Sahabat AI sedang menulis balasan...'],
-          [20000, 'Melanjutkan menulis...'],
-          [30000, 'Hampir selesai, mohon tunggu...'],
-          [45000, 'Model sedang sibuk — hampir ada hasilnya...'],
-          [65000, 'Masih memproses — ini jarang terjadi, mohon sabar...']
+        // Baca SSE
+        var reader = res.body.getReader();
+        var dec = new TextDecoder();
+        var buf = '';
+        var teksAi = '';
+        var labelTimers = [
+          [6000, 'Sahabat AI memahami isi ceritamu...'],
+          [15000, 'Sahabat AI sedang menulis...'],
+          [30000, 'Melanjutkan menulis...'],
+          [50000, 'Hampir selesai...']
         ];
-        var faseTimers = fase.map(function (f) {
-          return setTimeout(function () { tampilkanMengetik(f[1]); }, f[0]);
+        labelTimers.forEach(function (lt) {
+          setTimeout(function () {
+            if (window.__aiFaseAktif !== 'menulis' && !window.__aiSelesaiThis) stLabel.textContent = lt[1];
+          }, lt[0]);
         });
-        var r = await fetch('/api/ai/chat', { method: 'POST', headers: headers, body: JSON.stringify(payload) });
-        var j = await r.json();
-        faseTimers.forEach(clearTimeout);
-        hapusMengetik();
-        if (!r.ok) throw new Error(j.error || 'gagal');
-        if (!sesiId && j.sesiId) {
-          window.__aiSesi = j.sesiId;
+
+        while (true) {
+          var rd = await reader.read();
+          if (rd.done) break;
+          buf += dec.decode(rd.value, { stream: true });
+          var lines = buf.split('\n');
+          buf = lines.pop();
+          for (var li = 0; li < lines.length; li++) {
+            var ln = lines[li];
+            if (!ln.startsWith('data: ')) continue;
+            var dat = ln.slice(6);
+            if (dat === '[DONE]') continue;
+            try {
+              var ev = JSON.parse(dat);
+              if (ev.error) throw new Error(ev.error);
+              if (ev.fase === 'berpikir') {
+                stLabel.textContent = 'Sahabat AI sedang berpikir...';
+                window.__aiFaseAktif = 'berpikir';
+              } else if (ev.fase === 'menulis') {
+                stLabel.textContent = 'Sahabat AI sedang menulis...';
+                window.__aiFaseAktif = 'menulis';
+                // Hapus dots (sudah mulai menulis)
+                if (bs.parentNode) bs.remove();
+              } else if (ev.chunk) {
+                teksAi += ev.chunk;
+                // live render markdown
+                pAi.innerHTML = renderAiMarkdown(teksAi);
+                chatBody.scrollTop = chatBody.scrollHeight;
+              }
+              if (ev.done) {
+                window.__aiSelesaiThis = true;
+                if (bs.parentNode) bs.remove();
+                if (stLabel.parentNode) stLabel.remove();
+                if (ev.sesiId) window.__aiSesi = ev.sesiId;
+                // final render + draftForm
+                pAi.innerHTML = '';
+                // final: pakai render markdown penuh
+                var tmp = document.createElement('div');
+                tmp.innerHTML = renderAiMarkdown(ev.balasan || teksAi);
+                while (tmp.firstChild) pAi.appendChild(tmp.firstChild);
+                chatBody.scrollTop = chatBody.scrollHeight;
+
+                if (ev.draftForm && typeof isiFormDariDraft === 'function') {
+                  var df = ev.draftForm;
+                  try { sessionStorage.setItem('ai-draft-laporan', JSON.stringify(df)); } catch (e5) {}
+                  if (df.sinyalKrisis) cekKrisis('krisis dari draft');
+                  kartuAksiAi(
+                    '<div class="ai-ajakan">' +
+                    '<span><strong>Draft laporan siap:</strong> untuk ' + (df.untuk || 'Diri sendiri') +
+                    (df.kategori && df.kategori.length ? ' · ' + df.kategori.join(', ') : '') + '</span>' +
+                    '<button type="button" class="btn btn-primary" id="btnBukaFormTerisi">Buka & review form laporan</button>' +
+                    '</div>'
+                  );
+                  var bb2 = document.getElementById('btnBukaFormTerisi');
+                  if (bb2) bb2.addEventListener('click', function () { isiFormDariDraft(df); });
+                }
+                tawarkanLaporan();
+              }
+            } catch (e4) { if (e4.message) throw e4; }
+          }
         }
-        bubble(j.balasan || '(AI tidak membalas)', 'in');
-        tawarkanLaporan();
-        // Gerbang niat (client-side): draftForm dari backend HANYA dipercaya kalau
-        // pesan user memang eksplisit minta laporan. Model sesekali salah trigger —
-        // gerbang ini menahan salah trigger dari sampai ke user.
-        var NIAK_LAPOR = /\b(buatkan|buat\s+(laporan|form|draft)|isi|edit|modifikasi|ubah|perbarui|update|siapkan|susun|tulis)[^\n]{0,30}(laporan|form|draft|pengaduan)|\b(laporan|form|draft|pengaduan)[^\n]{0,30}(dibuatkan|diisi|dimodifikasi|diubah|diperbarui)|\blapor(hkan)?\s+sekarang\b|\bmulai\s+lapor\b|\bbikin(kan)?\s+(laporan|form)/i;
-        var mintaLaporan = NIAK_LAPOR.test(teks);
-        if (j.draftForm && !mintaLaporan) {
-          console.log('[ai] draftForm diabaikan — user tidak minta laporan');
-        }
-        if (j.draftForm && mintaLaporan && typeof isiFormDariDraft === 'function') {
-          var df = j.draftForm;
-          try { sessionStorage.setItem('ai-draft-laporan', JSON.stringify(df)); } catch (e) {}
-          if (df.sinyalKrisis) cekKrisis('krisis dari draft');
-          kartuAksiAi(
-            '<div class="ai-ajakan">' +
-            '<span><strong>Aku sudah siapkan draft laporanmu:</strong> untuk ' + (df.untuk || 'Diri sendiri') +
-            (df.kategori && df.kategori.length ? ' · ' + df.kategori.join(', ') : '') +
-            '. Sudah kuisi ke form—tinggal kamu review dan kirim.</span>' +
-            '<button type="button" class="btn btn-primary" id="btnBukaFormTerisi">Buka & review form laporan</button>' +
-            '</div>'
-          );
-          var bb = document.getElementById('btnBukaFormTerisi');
-          if (bb) bb.addEventListener('click', function () { isiFormDariDraft(df); });
-        }
-      } catch (e) {
-        hapusMengetik();
-        bubble('Sahabat AI: ' + e.message, 'in');
-        // Tombol coba lagi — kirim ulang pesan yang sama tanpa user ngetik ulang.
-        var d = document.createElement('div');
-        d.className = 'ai-aksi';
-        d.innerHTML = '<button type="button" class="btn btn-primary btn-retry-ai">' +
+      } catch (e3) {
+        // Hapus bubble panjang kalau error, ganti error + retry
+        divAi.remove();
+        bubble('Sahabat AI: ' + e3.message, 'in');
+        var dr = document.createElement('div');
+        dr.className = 'ai-aksi';
+        dr.innerHTML = '<button type="button" class="btn btn-primary btn-retry-ai">' +
           '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M1 4v6h6"/><path d="M3.5 15a9 9 0 102.1-9.4L1 10"/></svg>Coba lagi</button>';
-        chatBody.appendChild(d);
+        chatBody.appendChild(dr);
         chatBody.scrollTop = chatBody.scrollHeight;
-        d.querySelector('.btn-retry-ai').addEventListener('click', function () {
-          d.remove();
-          kirimPesan(teks);  // kirim ulang pesan yang tadi gagal
+        dr.querySelector('.btn-retry-ai').addEventListener('click', function () {
+          dr.remove();
+          kirimPesan(teks);
         });
       }
       btnSend.disabled = false;

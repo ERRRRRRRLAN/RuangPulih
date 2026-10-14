@@ -274,6 +274,83 @@ async function tanyaAIJson(messages) {
   throw lastErr || new Error('AI tidak tersedia');
 }
 
+
+// Versi streaming dari tanyaAI: mengirim event fase riil ke client.
+// res: Express response (SSE sudah diset oleh pemanggil).
+// events: fungsi cb(fase) — 'berpikir' | 'menulis'
+// return: teks lengkap balasan AI.
+async function tanyaAIStream(messages, res, kirimEvent) {
+  const semuanya = GONKA_KEYS.length > 0 ? GONKA_KEYS : [config.AI_API_KEY];
+  let lastErr = null;
+
+  for (let attempt = 0; attempt < Math.min(semuanya.length, 5); attempt++) {
+    const key = nextKey();
+    const modelPakai = attempt < 2 ? (process.env.GONKA_MODEL || AI_MODEL) : 'zai-org/GLM-5.3-Flash';
+    const ac = new AbortController();
+    const timeout = setTimeout(() => ac.abort(), attempt < 2 ? 120_000 : 90_000);
+    try {
+      const res2 = await fetch(AI_BASE.replace(/\/$/, '') + '/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+        body: JSON.stringify(modelPakai.includes('deepseek')
+          ? { model: modelPakai, messages, max_tokens: 32000, temperature: 0.7, reasoning_effort: 'low', stream: true }
+          : { model: modelPakai, messages, max_tokens: 32000, temperature: 0.7, thinking: { type: 'enabled', budget_tokens: 512 }, stream: true }),
+        signal: ac.signal,
+      });
+      if (!res2.ok) {
+        const teks = await res2.text().catch(() => '');
+        if ([401, 402, 403].includes(res2.status)) { lastErr = new Error('key ditolak ' + res2.status); continue; }
+        throw new Error('AI gateway ' + res2.status + ': ' + teks.slice(0, 200));
+      }
+
+      // Parse SSE dari provider, teruskan fase ke client.
+      const reader = res2.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let balasan = '';
+      let faseSekarang = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const d = line.slice(6);
+          if (d === '[DONE]') continue;
+          try {
+            const j = JSON.parse(d);
+            const delta = j.choices && j.choices[0] && j.choices[0].delta || {};
+            // DeepSeek: 'reasoning' + 'content'; GLM: 'reasoning_content' + 'content'
+            const reasoning = delta.reasoning || delta.reasoning_content;
+            const content = delta.content;
+            if (reasoning && faseSekarang !== 'berpikir') {
+              faseSekarang = 'berpikir';
+              kirimEvent({ fase: 'berpikir' });
+            }
+            if (content) {
+              if (faseSekarang !== 'menulis') {
+                faseSekarang = 'menulis';
+                kirimEvent({ fase: 'menulis' });
+              }
+              balasan += content;
+              kirimEvent({ chunk: content });
+            }
+          } catch (e) { /* skip chunk rusak */ }
+        }
+      }
+      if (!balasan.trim()) { lastErr = new Error('AI respons kosong'); continue; }
+      return balasan.trim();
+    } catch (e) {
+      if (e.name === 'AbortError') { lastErr = new Error('AI timeout'); continue; }
+      if (!lastErr) throw e;
+      lastErr = e; break;
+    } finally { clearTimeout(timeout); }
+  }
+  throw lastErr || new Error('AI tidak tersedia');
+}
+
 // Auth opsional: Bearer anon-token (mode tiket) kalau ada.
 function verifikasiAnonOpsional(req, res, next) {
   const h = req.headers.authorization || '';
@@ -479,6 +556,90 @@ ${transkrip}`;
   } catch (e) {
     console.error('[ai/siapkan-laporan]', e.message);
     res.status(502).json({ error: 'Gagal menyiapkan draft laporan. Coba lagi sebentar.' });
+  }
+});
+
+
+// POST /api/ai/chat/stream — versi SSE dari /chat (mode sesi utama).
+// Event: {fase:'berpikir'|'menulis'} lalu {chunk:'...'} berulang, akhir {done:true, draftForm?}
+router.post('/chat/stream', verifikasiAnonOpsional, async (req, res) => {
+  if (!AKTIF) return res.status(503).json({ error: 'fitur AI belum aktif' });
+
+  const isi = String((req.body && req.body.isi) || '').trim();
+  const sesi = String((req.body && req.body.sesi) || '');
+  const mode = String((req.body && req.body.mode) || '') === 'laporan' ? 'laporan' : 'ngobrol';
+  const tiket = req.tiketAnon || null;
+
+  if (!isi) return res.status(400).json({ error: 'isi wajib diisi' });
+  if (isi.length > 2000) return res.status(400).json({ error: 'pesan maksimal 2000 karakter' });
+  if (!tiket && !sesiValid(sesi)) return res.status(400).json({ error: 'sesi tidak valid' });
+
+  // SSE headers
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no'
+  });
+  const kirim = (obj) => { try { res.write('data: ' + JSON.stringify(obj) + '\n\n'); } catch (e) {} };
+
+  try {
+    let messages;
+    if (tiket) {
+      const kuota = await aiKuotaTiket(tiket);
+      if (kuota.terpakai >= kuota.perHari) {
+        kirim({ error: 'jatah obrolan AI hari ini habis' });
+        return res.end();
+      }
+      const riwayat = await aiHistoryTiket(tiket);
+      const systemMsg = { role: 'system', content: SYSTEM_PROMPT };
+      messages = [systemMsg, ...riwayat];
+      const p = await db.prepare('SELECT untuk, kategori, status, darurat, cerita_enc FROM pengaduan WHERE no_tiket=$1').get(tiket);
+      if (p) {
+        const cerita = decryptAman(p.cerita_enc, 'tiket ' + tiket);
+        systemMsg.content += `\n\nKONTEKS TIKET: untuk=${p.untuk}, kategori=${p.kategori}, status=${p.status}${cerita ? ', cerita: "' + cerita.slice(0, 600) + '"' : ''}`;
+      }
+      messages.push({ role: 'user', content: mode === 'laporan' ? PROMPT_LAPORAN : isi });
+    } else {
+      const kuota = await aiKuotaSesi(sesi);
+      if (kuota.terpakai >= kuota.perHari) {
+        kirim({ error: 'jatah obrolan AI sesi ini habis (' + kuota.perHari + '/hari)' });
+        return res.end();
+      }
+      const riwayat = await aiHistorySesi(sesi);
+      messages = [
+        { role: 'system', content: SYSTEM_PROMPT + '\n\nCATATAN: Pengguna BELUM membuat laporan formal. Ajakan lembut ke konselor cukup sekali saat mengalir.' },
+        ...riwayat,
+        { role: 'user', content: mode === 'laporan' ? PROMPT_LAPORAN : isi },
+      ];
+    }
+
+    // Streaming: fase + chunk real-time
+    let balasan = await tanyaAIStream(messages, res, (ev) => kirim(ev));
+
+    // Deteksi tag DRAFT_FORM di balasan lengkap
+    let draftForm = null;
+    const mDraft = balasan.match(/\[DRAFT_FORM\](\{[\s\S]*?\})(?:\n|$)/);
+    if (mDraft) {
+      try { draftForm = sanitasiDraft(JSON.parse(mDraft[1])); } catch (e) {}
+      balasan = balasan.replace(/\[DRAFT_FORM\][\s\S]*$/, '').trim();
+    }
+
+    // Simpan riwayat
+    if (tiket) {
+      await aiSimpanTiket(tiket, 'ai_user', isi);
+      await aiSimpanTiket(tiket, 'ai', balasan);
+    } else {
+      await aiSimpanSesi(sesi, 'user', isi);
+      await aiSimpanSesi(sesi, 'ai', balasan);
+    }
+
+    kirim({ done: true, balasan, draftForm });
+    res.end();
+  } catch (e) {
+    console.error('[ai/chat/stream]', e.message);
+    kirim({ error: 'AI sedang tidak bisa dihubungi. Coba lagi sebentar.' });
+    res.end();
   }
 });
 
