@@ -211,7 +211,9 @@ async function tanyaAI(messages) {
       const res = await fetch(AI_BASE.replace(/\/$/, '') + '/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-        body: JSON.stringify({ model: modelPakai, messages, max_tokens: 32000, temperature: 0.7, thinking: { type: 'disabled' } }),
+        body: JSON.stringify(modelPakai.includes('deepseek')
+          ? { model: modelPakai, messages, max_tokens: 32000, temperature: 0.7, reasoning_effort: 'low' }
+          : { model: modelPakai, messages, max_tokens: 32000, temperature: 0.7, thinking: { type: 'enabled', budget_tokens: 512 } }),
         signal: ac.signal,
       });
       if (!res.ok) {
@@ -246,7 +248,9 @@ async function tanyaAIJson(messages) {
       const res = await fetch(AI_BASE.replace(/\/$/, '') + '/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-        body: JSON.stringify({ model: modelPakai, messages, max_tokens: 32000, temperature: 0.3, thinking: { type: 'disabled' } }),
+        body: JSON.stringify(modelPakai.includes('deepseek')
+          ? { model: modelPakai, messages, max_tokens: 32000, temperature: 0.3, reasoning_effort: 'low' }
+          : { model: modelPakai, messages, max_tokens: 32000, temperature: 0.3, thinking: { type: 'enabled', budget_tokens: 512 } }),
         signal: ac.signal,
       });
       if (!res.ok) {

@@ -1170,12 +1170,19 @@
     chatBody.scrollTop = chatBody.scrollHeight;
   }
 
-  function tampilkanMengetik() {
-    if ($('#indikatorMengetik')) return;
+  function tampilkanMengetik(label) {
+    var ada = $('#indikatorMengetik');
+    if (ada) {
+      // update label kalau indikator sudah ada
+      var sp = ada.querySelector('.typing-label');
+      if (sp && label) sp.textContent = label;
+      return;
+    }
     var d = document.createElement('div');
     d.className = 'msg in typing';
     d.id = 'indikatorMengetik';
-    d.innerHTML = '<i></i><i></i><i></i>';
+    d.innerHTML = '<span class="dots"><i></i><i></i><i></i></span>' +
+      (label ? '<span class="typing-label">' + label + '</span>' : '');
     chatBody.appendChild(d);
     chatBody.scrollTop = chatBody.scrollHeight;
   }
@@ -1200,10 +1207,14 @@
         if (tiket) {
           headers['Authorization'] = 'Bearer ' + await window.RuangPulihRT.mintaAnonToken(tiket);
         }
-        // Animasi typing selama AI memproses.
-        tampilkanMengetik();
+        // Animasi typing bertahap selama AI memproses.
+        tampilkanMengetik('Membaca ceritamu...');
+        var faseTimer = setTimeout(function () { tampilkanMengetik('Menyusun jawaban...'); }, 8000);
+        var faseTimer2 = setTimeout(function () { tampilkanMengetik('Hampir selesai...'); }, 25000);
+        var faseTimer3 = setTimeout(function () { tampilkanMengetik('Mohon tunggu sebentar, pertanyaanmu cukup kompleks...'); }, 45000);
         var r = await fetch('/api/ai/chat', { method: 'POST', headers: headers, body: JSON.stringify(payload) });
         var j = await r.json();
+        clearTimeout(faseTimer); clearTimeout(faseTimer2); clearTimeout(faseTimer3);
         hapusMengetik();
         if (!r.ok) throw new Error(j.error || 'gagal');
         if (!sesiId && j.sesiId) {
