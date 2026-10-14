@@ -131,7 +131,7 @@ async function tanyaAI(messages) {
   for (let attempt = 0; attempt < Math.min(semuanya.length, 5); attempt++) {
     const key = nextKey();
     // Attempt >= 2: fallback ke DeepSeek (jauh lebih cepat dari GLM reasoning)
-    const modelPakai = attempt >= 2 ? 'deepseek-ai/DeepSeek-V4-Flash-0731' : AI_MODEL;
+    const modelPakai = attempt < 2 ? (process.env.GONKA_MODEL || AI_MODEL) : 'zai-org/GLM-5.3-Flash';
     const ac = new AbortController();
     const timeout = setTimeout(() => ac.abort(), attempt >= 2 ? 60_000 : 120_000);
     try {
@@ -166,7 +166,7 @@ async function tanyaAIJson(messages) {
   let lastErr = null;
   for (let attempt = 0; attempt < Math.min(semuanya.length, 5); attempt++) {
     const key = nextKey();
-    const modelPakai = attempt >= 2 ? 'deepseek-ai/DeepSeek-V4-Flash-0731' : AI_MODEL;
+    const modelPakai = attempt < 2 ? (process.env.GONKA_MODEL || AI_MODEL) : 'zai-org/GLM-5.3-Flash';
     const ac = new AbortController();
     const timeout = setTimeout(() => ac.abort(), attempt >= 2 ? 60_000 : 120_000);
     try {
