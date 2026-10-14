@@ -248,9 +248,11 @@ async function tanyaAI(messages) {
         throw new Error('AI gateway ' + res.status + ': ' + teks.slice(0, 200));
       }
       const j = await res.json();
-      const isi = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+      let isi = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
       if (!isi || !String(isi).trim()) throw new Error('AI respons kosong');
-      return String(isi).trim();
+      // reasoning model bisa membocorkan <think>…</think> ke content — buang
+      isi = String(isi).replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+      return isi;
     } catch (e) {
       if (e.name === 'AbortError') { lastErr = new Error('AI timeout 120s'); continue; }
       if (!lastErr) throw e;
@@ -653,7 +655,9 @@ router.post('/chat/stream', verifikasiAnonOpsional, async (req, res) => {
       messages = [
         { role: 'system', content: SYSTEM_PROMPT + '\n\nCATATAN: Pengguna BELUM membuat laporan formal. Ajakan lembut ke konselor cukup sekali saat mengalir.' },
         ...riwayat,
-        { role: 'user', content: mode === 'laporan' ? PROMPT_LAPORAN : isi },
+        { role: 'user', content: mode === 'laporan'
+          ? PROMPT_LAPORAN + '\n\nPERMINTAAN/KOREKSI SPESIFIK PENGGUNA (PENTING — ikuti bila ada): ' + isi
+          : isi },
       ];
     }
 
@@ -673,13 +677,29 @@ router.post('/chat/stream', verifikasiAnonOpsional, async (req, res) => {
     // (b) backend SUSUN JSON SENDIRI: usia/kota/frekuensi/zat dari transkrip via regex — anti halusinasi.
     if (draftForm === null && mode === 'laporan') {
       try {
-        const transkripFull = messages.filter(function (m) { return m.role !== 'system'; })
-          .map(function (m) { return (m.role === 'user' ? 'PELAPOR: ' : 'AI: ') + m.content; })
-          .join('\n').slice(0, 5000);
+        const transkripFull = (function () {
+          // Pesan user ASLI + riwayat — buang PROMPT_LAPORAN (panjang, mengandung instruksi
+          // yang bisa terbaca sebagai 'cerita'). Ciri PROMPT_LAPORAN: mengandung '[DRAFT_FORM]'.
+          const bagian = [];
+          for (const m of messages) {
+            if (m.role === 'system') continue;
+            // mode=laporan: content = PROMPT_LAPORAN + marker + ISI user — ambil ISI-nya saja
+            const cip = m.content.split('PERMINTAAN/KOREKSI SPESIFIK PENGGUNA');
+            if (cip[1]) {
+              bagian.push('PELAPOR: ' + cip[1].replace(/^\s*\(PENTING[^)]*\)\s*:?\s*/, ''));
+              continue;
+            }
+            // Jangan sertakan prompt/instruksi sistem panjang (ciri: mengandung [DRAFT_FORM] ATAU 'mohon bantu susun CERITA')
+            if (m.content.indexOf('[DRAFT_FORM]') !== -1) continue;
+            if (m.content.indexOf('mohon bantu susun CERITA') === 0) continue;
+            bagian.push((m.role === 'user' ? 'PELAPOR: ' : 'AI: ') + m.content);
+          }
+          return bagian.join('\n').slice(-5000);
+        })();
 
         // (a) Ringkasan orang-pertama via AI (tidak butuh JSON)
         const ringkasan = await tanyaAI([{ role: 'user', content:
-          'Ringkas percakapan berikut jadi cerita pengaduan ORANG PERTAMA ("Saya...") — kronologis, 3-6 kalimat, hanya fakta yang disebut, tanpa tambahan. Cerita:\n' + transkripFull
+          'TUGAS: Tulis CERITA pengaduan orang-pertama dari pengakuan pelapor di bawah ini — BUKAN ringkasan permintaan. Isi ceritanya: siapa yang memakai apa, sejak kapan / seberapa sering, gejala yang kelihatan, dan siapa yang khawatir. Mulai dengan "Saya punya" atau "Saya". 3-6 kalimat. HANYA fakta yang disebut di percakapan — jangan mengarang usia/kota/nama.\n\nPERCAKAPAN:\n' + transkripFull
         }]);
 
         // (b) Backend susun JSON dari transkrip (deterministik, anti-halusinasi)
@@ -708,14 +728,36 @@ router.post('/chat/stream', verifikasiAnonOpsional, async (req, res) => {
           : /beberapa\s*kali/.test(lower) ? 'Beberapa kali'
           : /(sekali|coba-coba)/.test(lower) ? 'Pernah sekali / coba-coba'
           : /(sering|mingguan)/.test(lower) ? 'Sering (mingguan)' : 'Tidak tahu / orang lain';
-        // usia
+        // usia — KOREKSI TERAKHIR MENANG: pesan user terakhir dicek dulu,
+        // baru fallback ke keseluruhan transkrip.
         let usia = null;
-        const mU = lower.match(/\b(1[0-9]|20)\s*(tahun|thn|yo)?\b/);
-        if (mU) usia = Number(mU[1]);
+        const pesanUserTerakhir = (function () {
+          const cek = [];
+          for (const m of messages) {
+            if (m.role !== 'user') continue;
+            const cip = m.content.split('PERMINTAAN/KOREKSI SPESIFIK PENGGUNA');
+            cek.push(cip[1] ? cip[1].replace(/^\s*\(PENTING[^)]*\)\s*:?\s*/, '') : m.content);
+          }
+          return cek.length ? cek[cek.length - 1] : '';
+        })();
+        const mU2 = pesanUserTerakhir.toLowerCase().match(/\b(1[0-9]|2[0-9]|3[0-9]|4[0-9]|5[0-9]|6[0-9])\s*(tahun|thn|yo)?\b/);
+        if (mU2) usia = Number(mU2[1]);
+        else {
+          const mU = lower.match(/\b(1[0-9]|2[0-9]|3[0-9]|4[0-9]|5[0-9]|6[0-9])\s*(tahun|thn|yo)?\b/);
+          if (mU) usia = Number(mU[1]);
+        }
         // lokasi: kata setelah "di " yang kapital di teks asli, atau "kota X"
         let lokasi = null;
-        const mL = messages.map(m => m.content).join(' ').match(/\b(?:di|kota)\s+([A-Z][a-zA-Z\s]{2,30})/);
-        if (mL) lokasi = mL[1].trim();
+        const KOTA_ID = ['jakarta','bandung','surabaya','medan','semarang','makassar','palembang','tangerang','bekasi','depok','bogor','batam','padang','malang','pekanbaru','bandar lampung','yogyakarta','solo','surakarta','denpasar','pontianak','samarinda','balikpapan','manado','ambon','jayapura','makassar','medan','karawang','subang','cianjur','garut','tasikmalaya','cirebon','pekalongan','kudus','jepara','sidoarjo','mojokerto','kediri','madiun','magelang','purwokerto','salatiga','klaten','kulon progo','bantul','sleman','aceh','banda aceh','medan','pematangsiantar','tebing tinggi','jambi','bangka','belitung','pontianak','singkawang','palangkaraya','banjarmasin','tarakan','gorontalo','palu','kendari','ternate','tidore',' Ambon'];
+        const teksAsli = messages.map(function (m) { return m.content; }).join(' ');
+        for (const k of KOTA_ID) {
+          if (teksAsli.toLowerCase().indexOf(k) !== -1) { lokasi = k.charAt(0).toUpperCase() + k.slice(1); break; }
+        }
+        if (!lokasi) {
+          // fallback: "kota X" eksplisit
+          const mL = teksAsli.match(/\bkota\s+([A-Z][a-zA-Z]{2,20})/);
+          if (mL) lokasi = mL[1];
+        }
 
         draftForm = { untuk, kategori, frekuensi, usia, lokasi, cerita: ringkasan, darurat: /overdose|mendesak|darurat|sekarang juga/i.test(lower), sinyalKrisis: /bunuh diri|membunuh diri|akhiri hidup|overdosis/i.test(lower) };
       } catch (e2) {
