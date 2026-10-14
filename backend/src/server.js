@@ -22,6 +22,7 @@ app.use('/api/auth/login', rateLimit({ windowMs: 60_000, max: 5 }));   // login:
 app.use('/api/pengaduan', rateLimit({ windowMs: 60_000, max: 10 }));  // pengaduan: 10x/menit
 app.use('/api/pesan', rateLimit({ windowMs: 60_000, max: 30 }));      // pesan: 30x/menit per IP
 app.use('/api/pesan/tiket', rateLimit({ windowMs: 60_000, max: 10 })); // validasi tiket anon: 10x/menit (anti brute-force kode tiket)
+app.use('/api/ai/chat', rateLimit({ windowMs: 60_000, max: 10 }));     // AI chat: 10x/menit (biaya model + anti abuse)
 app.use('/api', rateLimit());                                          // umum: 30x/menit
 
 // Route API
@@ -31,6 +32,7 @@ app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/layanan', require('./routes/layanan'));
 app.use('/api/rujukan', require('./routes/rujukan'));
 app.use('/api/pesan', require('./routes/pesan'));
+app.use('/api/ai', require('./routes/ai'));
 app.use('/api/telegram', require('./routes/telegram'));
 app.use('/api/dashboard', require('./routes/inbox')); // inbox terpisah file, rute sama
 

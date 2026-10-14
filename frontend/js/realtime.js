@@ -112,6 +112,31 @@
     return await r.json();
   }
 
+  // Chat AI (Sahabat AI): server proxy ke gonkarouter, key tak pernah ke browser.
+  async function kirimAi(tiket, isi, mode) {
+    var headers = { 'Content-Type': 'application/json' };
+    if (anonToken) headers['Authorization'] = 'Bearer ' + anonToken;
+    var r = await fetch('/api/ai/chat', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({ tiket: tiket, isi: isi, mode: mode || 'ngobrol' })
+    });
+    if (!r.ok) {
+      var j = null;
+      try { j = await r.json(); } catch (e) {}
+      throw new Error((j && j.error) || 'AI sedang tidak bisa dihubungi');
+    }
+    return await r.json();
+  }
+
+  async function statusAi() {
+    try {
+      var r = await fetch('/api/ai/status');
+      var j = await r.json();
+      return !!(j && j.aktif);
+    } catch (e) { return false; }
+  }
+
   // Ambil history pesan (plaintext, server-side decrypt)
   async function ambilHistory(tiket) {
     var headers = {};
@@ -129,6 +154,8 @@
     kirimTyping: kirimTyping,
     kirimBaca: kirimBaca,
     kirimPesan: kirimPesan,
+    kirimAi: kirimAi,
+    statusAi: statusAi,
     ambilHistory: ambilHistory,
     setAnonToken: function (t) { anonToken = t; }
   };

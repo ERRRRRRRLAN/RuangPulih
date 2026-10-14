@@ -59,6 +59,10 @@
         '<p class="gate-bawah">Belum punya tiket? <a href="/#pengaduan" id="gateKePengaduan">Buat laporan anonim dulu</a></p>' +
       '</form>' +
       '<div class="chat-isi" id="chatIsi" hidden>' +
+        '<div class="chat-mode-tabs" id="chatModeTabs" hidden>' +
+          '<button type="button" class="mode-tab aktif" data-mode="konselor" id="tabKonselor">Konselor</button>' +
+          '<button type="button" class="mode-tab" data-mode="ai" id="tabAi">Sahabat AI</button>' +
+        '</div>' +
         '<div class="chat-body" id="chatBody" aria-live="polite"></div>' +
         '<div class="chat-quick" id="quickReplies">' +
           '<button type="button" class="chat-quick-toggle" id="quickRepliesToggle" aria-expanded="true" aria-controls="quickRepliesList">' +

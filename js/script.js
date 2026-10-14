@@ -1144,6 +1144,18 @@
     bubble(teks, 'out');
     inputChat.value = '';
     btnSend.disabled = true;
+    // Mode AI: kirim ke /api/ai/chat (Sahabat AI), tampilkan balasan sbg bubble 'in'.
+    if (window.__chatMode === 'ai') {
+      try {
+        var j = await window.RuangPulihRT.kirimAi(tiket, teks, 'ngobrol');
+        bubble(j.balasan || '(AI tidak membalas)', 'in');
+      } catch (e) {
+        bubble('Sahabat AI: ' + e.message, 'in');
+      }
+      btnSend.disabled = false;
+      inputChat.focus();
+      return;
+    }
     if (rtSiap) {
       try { await window.RuangPulihRT.kirimPesan(tiket, teks); }
       catch (e) { bubble('Pesan gagal terkirim: ' + e.message, 'in'); }
@@ -1152,6 +1164,32 @@
       socketSiap(); // coba sambung lagi
     }
   }
+
+  // Tab mode chat: Konselor <-> Sahabat AI. Tampil hanya kalau AI aktif.
+  (async function initModeTabs() {
+    var tabs = $('#chatModeTabs');
+    if (!tabs) return;
+    var aktif = await window.RuangPulihRT.statusAi();
+    if (!aktif) { tabs.hidden = true; return; }
+    tabs.hidden = false;
+    tabs.addEventListener('click', function (e) {
+      var btn = e.target.closest('.mode-tab');
+      if (!btn) return;
+      $$('#chatModeTabs .mode-tab').forEach(function (b) { b.classList.remove('aktif'); });
+      btn.classList.add('aktif');
+      window.__chatMode = btn.getAttribute('data-mode');
+      // Ganti placeholder input & hint sesuai mode.
+      inputChat.placeholder = window.__chatMode === 'ai'
+        ? 'Cerita ke Sahabat AI...'
+        : 'Tulis pesan Anda...';
+      // AI mode: indikator tidak dipakai (balasan langsung), pesan history AI tidak
+      // di-refresh realtime — cukup container kosong saat pindah mode.
+      chatBody.innerHTML = '';
+      if (window.__chatMode === 'ai') {
+        bubble('Halo! Aku Sahabat AI — teman cerita kamu di Ruang Pulih. Bebas bilang apa aja, anonim. Kalau mau, aku juga bantu susun cerita jadi laporan buat konselor. Mau ngobrol apa dulu?', 'in');
+      }
+    });
+  })();
 
   formChat.addEventListener('submit', function (e) {
     e.preventDefault();
