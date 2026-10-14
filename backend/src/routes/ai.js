@@ -130,13 +130,15 @@ async function tanyaAI(messages) {
 
   for (let attempt = 0; attempt < Math.min(semuanya.length, 5); attempt++) {
     const key = nextKey();
+    // Attempt >= 2: fallback ke DeepSeek (jauh lebih cepat dari GLM reasoning)
+    const modelPakai = attempt >= 2 ? 'deepseek-ai/DeepSeek-V4-Flash-0731' : AI_MODEL;
     const ac = new AbortController();
-    const timeout = setTimeout(() => ac.abort(), 120_000);
+    const timeout = setTimeout(() => ac.abort(), attempt >= 2 ? 60_000 : 120_000);
     try {
       const res = await fetch(AI_BASE.replace(/\/$/, '') + '/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-        body: JSON.stringify({ model: AI_MODEL, messages, max_tokens: Math.max(config.AI_MAX_TOKENS, 4000), temperature: 0.7, thinking: { type: 'disabled' } }),
+        body: JSON.stringify({ model: modelPakai, messages, max_tokens: Math.max(config.AI_MAX_TOKENS, 4000), temperature: 0.7, thinking: { type: 'disabled' } }),
         signal: ac.signal,
       });
       if (!res.ok) {
@@ -164,13 +166,14 @@ async function tanyaAIJson(messages) {
   let lastErr = null;
   for (let attempt = 0; attempt < Math.min(semuanya.length, 5); attempt++) {
     const key = nextKey();
+    const modelPakai = attempt >= 2 ? 'deepseek-ai/DeepSeek-V4-Flash-0731' : AI_MODEL;
     const ac = new AbortController();
-    const timeout = setTimeout(() => ac.abort(), 120_000);
+    const timeout = setTimeout(() => ac.abort(), attempt >= 2 ? 60_000 : 120_000);
     try {
       const res = await fetch(AI_BASE.replace(/\/$/, '') + '/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-        body: JSON.stringify({ model: AI_MODEL, messages, max_tokens: Math.max(config.AI_MAX_TOKENS * 4, 4000), temperature: 0.3, thinking: { type: 'disabled' } }),
+        body: JSON.stringify({ model: modelPakai, messages, max_tokens: Math.max(config.AI_MAX_TOKENS * 4, 4000), temperature: 0.3, thinking: { type: 'disabled' } }),
         signal: ac.signal,
       });
       if (!res.ok) {
