@@ -1200,7 +1200,8 @@
       // Sesi AI (in-memory — refresh = sesi fresh)
       var sesiId = window.__aiSesi || null;
       var headers = { 'Content-Type': 'application/json' };
-      var payload = { isi: teks, mode: 'ngobrol' };
+      var modeReq = NIAK_LAPOR.test(teks) ? 'laporan' : 'ngobrol';
+      var payload = { isi: teks, mode: modeReq };
       if (sesiId) payload.sesi = sesiId;
       if (tiket) {
         try { headers['Authorization'] = 'Bearer ' + await window.RuangPulihRT.mintaAnonToken(tiket); } catch (e2) {}

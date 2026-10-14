@@ -664,6 +664,33 @@ router.post('/chat/stream', verifikasiAnonOpsional, async (req, res) => {
       balasan = balasan.replace(/\[DRAFT_FORM\][\s\S]*$/, '').trim();
     }
 
+    // JARING PENGAMAN: mode=laporan eksplisit tapi tag tidak keluar (model bandel)?
+    // → paksa generate draft via tanyaAIJson dari transkrip. User tidak perlu minta 2x.
+    if (draftForm === null && mode === 'laporan') {
+      try {
+        const transkrip = (function () {
+          // bangun transkrip dari riwayat + pesan ini (sama seperti siapkan-laporan)
+          let tr2 = 'PELAPOR: ' + isi + '\n';
+          // ambil sebagian riwayat yang sudah tersimpan sebelum chat ini
+          return tr2;
+        })();
+        const promptDraft = `Susun draft pengaduan dari percakapan berikut. Balas HANYA JSON:
+{"untuk":"Diri sendiri|Teman|Anggota keluarga|Orang lain / tetangga|Jaringan pengedar","kategori":["Ganja|Metamfetamina (Sabu)|Ekstasi|Heroin / Putaw|Obat resep disalahgunakan|Alkohol berlebihan|Lem / pelarut menguap|Belum yakin"],"frekuensi":"Pernah sekali / coba-coba|Beberapa kali|Sering (mingguan)|Hampir setiap hari|Tidak tahu / orang lain","usia":angka|null,"lokasi":"kota|null","cerita":"orang pertama dari fakta saja","darurat":false}
+ANTI-HALUSINASI: hanya fakta dari percakapan. Tidak disebut → null/'Belum yakin'.
+
+PERCAKAPAN:
+${messages.filter(function (m) { return m.role !== 'system'; }).map(function (m) { return (m.role === 'user' ? 'PELAPOR: ' : 'AI: ') + m.content; }).join('\n').slice(0, 5000)}`;
+        const rawD = await tanyaAIJson([{ role: 'user', content: promptDraft }]);
+        const bersih = rawD.replace(/```json|```/g, '').trim();
+        const awalD = bersih.indexOf('{'), akhirD = bersih.lastIndexOf('}');
+        if (awalD !== -1 && akhirD > awalD) {
+          draftForm = sanitasiDraft(JSON.parse(bersih.slice(awalD, akhirD + 1)), messages.map(function (m) { return m.content; }).join(' '));
+        }
+      } catch (e2) {
+        console.error('[ai/stream garantor]', e2.message);
+      }
+    }
+
     // Simpan riwayat
     if (tiket) {
       await aiSimpanTiket(tiket, 'ai_user', isi);
