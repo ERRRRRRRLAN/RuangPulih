@@ -215,7 +215,7 @@ async function tanyaAI(messages) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
         body: JSON.stringify(modelPakai.includes('deepseek')
-          ? { model: modelPakai, messages, max_tokens: 32000, temperature: 0.4, reasoning_effort: 'low' }
+          ? { model: modelPakai, messages, max_tokens: 32000, temperature: 0.4, reasoning_effort: 'medium' }
           : { model: modelPakai, messages, max_tokens: 32000, temperature: 0.4, thinking: { type: 'enabled', budget_tokens: 512 } }),
         signal: ac.signal,
       });
@@ -252,7 +252,7 @@ async function tanyaAIJson(messages) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
         body: JSON.stringify(modelPakai.includes('deepseek')
-          ? { model: modelPakai, messages, max_tokens: 32000, temperature: 0.3, reasoning_effort: 'low' }
+          ? { model: modelPakai, messages, max_tokens: 32000, temperature: 0.3, reasoning_effort: 'medium' }
           : { model: modelPakai, messages, max_tokens: 32000, temperature: 0.3, thinking: { type: 'enabled', budget_tokens: 512 } }),
         signal: ac.signal,
       });
@@ -507,6 +507,12 @@ router.post('/siapkan-laporan', async (req, res) => {
     const transkrip = riwayat.map(m => (m.role === 'user' ? 'PENGguna: ' : 'SAHABAT AI: ') + m.content).join('\n').slice(0, 6000);
     const promptRingkas = `Kamu menerima transkrip percakapan antara pengguna anonim dan Sahabat AI di layanan konseling narkotika Ruang Pulih.
 Tugas: susun DRAFT laporan pengaduan dari sudut pandang pengguna (orang pertama "saya"), jujur, kronologis, tanpa mengarang fakta baru.
+
+SEBELUM memilih, pikirkan dulu secara internal:
+ • "Laporan ini untuk siapa?" — Jika cerita memakai kata "dia/temenku/bilal" → TEMPAT LAIN, bukan diri sendiri. Jika memakai "aku/saya" → Diri sendiri.
+ • "Seberapa sering?" — Petakan kata pengguna: 'hampir tiap hari/tiap hari/setiap hari' → 'Hampir setiap hari'; 'sering/mingguan' → 'Sering (mingguan)'; 'beberapa kali/2-3x' → 'Beberapa kali'; 'sekali/coba-coba' → 'Pernah sekali / coba-coba'; tidak jelas → 'Tidak tahu / orang lain'.
+ • "Jenis zat apa?" — Petakan: sabu → 'Metamfetamina (Sabu)'; ganja → 'Ganja'; lem/kamper/inhalan → 'Lem / pelarut menguap'; alkohol/miras → 'Alkohol berlebihan'; ekstasi → 'Ekstasi'; heroin/putaw → 'Heroin / Putaw'; obat resep → 'Obat resep disalahgunakan'. Tidak disebut → ['Belum yakin'].
+ • "Usia & kota?" — HANYA jika angka/nama kota secara eksplisit di transkrip. Jangan tebak.
 
 Balas HANYA JSON valid (tanpa markdown, tanpa penjelasan):
 {"butuhTiket": true|false,
