@@ -1210,7 +1210,25 @@
           try { sessionStorage.setItem('ai-sesi', j.sesiId); } catch (e) {}
         }
         bubble(j.balasan || '(AI tidak membalas)', 'in');
-        tawarkanLaporan();  // setelah 2 balasan AI: tawarkan draft laporan sekali
+        tawarkanLaporan();
+        // AI minta form auto-isi (permintaan eksplisit user di chat)?
+        if (j.draftForm && typeof isiFormDariDraft === 'function') {
+          var df = j.draftForm;
+          try { sessionStorage.setItem('ai-draft-laporan', JSON.stringify(df)); } catch (e) {}
+          if (df.sinyalKrisis) cekKrisis('krisis dari draft');
+          kartuAksiAi(
+            '<div class="ai-ajakan">' +
+            '<span><strong>Aku sudah siapkan draft laporanmu:</strong> untuk ' + (df.untuk || 'Diri sendiri') +
+            (df.kategori && df.kategori.length ? ' · ' + df.kategori.join(', ') : '') +
+            '. Sudah kuisi ke form—tinggal kamu review dan kirim.</span>' +
+            '<button type="button" class="btn btn-primary" id="btnBukaFormTerisi">Buka & review form laporan</button>' +
+            '</div>'
+          );
+          var bb = document.getElementById('btnBukaFormTerisi');
+          if (bb) bb.addEventListener('click', function () { isiFormDariDraft(df); });
+          // opsi: auto-buka langsung tanpa klik (user sudah eksplisit minta)
+          setTimeout(function () { isiFormDariDraft(df); }, 1200);
+        }
       } catch (e) {
         hapusMengetik();
         bubble('Sahabat AI: ' + e.message, 'in');

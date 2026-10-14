@@ -67,7 +67,14 @@ ATURAN KERAS:
 - Balas SINGKAT (maks 6 kalimat), bahasa Indonesia sehari-hari.
 - Format: boleh pakai **teks tebal** untuk poin penting dan daftar pendek dengan tanda '-', TANPA heading '##'/'###' markdown panjang — chat, bukan dokumen.
 - Jangan minta identitas (nama asli, alamat, sekolah). Anonimitas dijaga.
-- Indikasi bahaya diri (bunuh diri/melukai): prioritaskan sampaikan hubungi 119 ext 8 SEKARANG.`;
+- Indikasi bahaya diri (bunuh diri/melukai): prioritaskan sampaikan hubungi 119 ext 8 SEKARANG.
+
+AKSI OTOMATIS [DRAFT_FORM]:
+- Jika pengguna JELAS meminta untuk membuat/memodifikasi/mengisi laporan (contoh: "buat laporannya", "isi formulir", "modifikasi form", "siapkan laporannya"), AKHIRI balasanmu dengan tag ini di baris baru terpisah:
+[DRAFT_FORM]{"untuk":"...","kategori":["..."],"frekuensi":"...","cerita":"...","darurat":false}
+- Isi JSON dari informasi yang sudah diceritakan pengguna. cerita WAJIB orang pertama, merangkum semua fakta yang dia share. JANGAN mengarang.
+- Format tag: [DRAFT_FORM]<json satu baris> — front-end akan otomatis membuka form pengaduan dan mengisi kolom-kolomnya.
+- Jangan gunakan tag ini jika pengguna hanya cerita biasa tanpa permintaan laporan.`;
 
 const PROMPT_LAPORAN = 'mohon bantu susun CERITA pengaduan yang jujur dan jelas dari apa yang sudah kuceritakan. Format: 1) Kejadian, 2) Kapan dan berapa lama, 3) Dampak ke saya, 4) Apa yang saya mau dari konselor. Ini untuk konselor manusia, bukan polisi.';
 
@@ -281,10 +288,16 @@ router.post('/chat', verifikasiAnonOpsional, async (req, res) => {
         systemMsg.content += `\n\nKONTEKS TIKET (jangan sebut nomor tiket): untuk=${p.untuk}, kategori=${p.kategori}, status=${p.status}${p.darurat ? ', DARURAT' : ''}${cerita ? ', cerita awal pelapor: "' + cerita.slice(0, 800) + '"' : ''}`;
       }
       messages.push({ role: 'user', content: mode === 'laporan' ? PROMPT_LAPORAN : isi });
-      const balasan = await tanyaAI(messages);
+      let balasan = await tanyaAI(messages);
+      let draftForm = null;
+      const mDraft = balasan.match(/\[DRAFT_FORM\](\{[\s\S]*?\})(?:\n|$)/);
+      if (mDraft) {
+        try { draftForm = JSON.parse(mDraft[1]); } catch (e) {}
+        balasan = balasan.replace(/\[DRAFT_FORM\][\s\S]*$/, '').trim();
+      }
       await aiSimpanTiket(tiket, 'ai_user', isi);
       await aiSimpanTiket(tiket, 'ai', balasan);
-      return res.json({ balasan });
+      return res.json(draftForm ? { balasan, draftForm } : { balasan });
     }
 
     // ---- mode sesi mandiri (utama) ----
@@ -300,10 +313,16 @@ router.post('/chat', verifikasiAnonOpsional, async (req, res) => {
       { role: 'user', content: mode === 'laporan' ? PROMPT_LAPORAN : isi },
     ];
 
-    const balasan = await tanyaAI(messages);
+    let balasan = await tanyaAI(messages);
+    let draftForm = null;
+    const mDraft = balasan.match(/\[DRAFT_FORM\](\{[\s\S]*?\})(?:\n|$)/);
+    if (mDraft) {
+      try { draftForm = JSON.parse(mDraft[1]); } catch (e) { /* tag rusak = abaikan */ }
+      balasan = balasan.replace(/\[DRAFT_FORM\][\s\S]*$/, '').trim();
+    }
     await aiSimpanSesi(sesi, 'user', isi);
     await aiSimpanSesi(sesi, 'ai', balasan);
-    res.json({ balasan });
+    res.json(draftForm ? { balasan, draftForm } : { balasan });
   } catch (e) {
     console.error('[ai/chat]', e.message);
     res.status(502).json({ error: 'AI sedang tidak bisa dihubungi. Coba lagi sebentar.' });
