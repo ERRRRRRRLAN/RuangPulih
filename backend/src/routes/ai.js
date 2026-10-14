@@ -229,6 +229,21 @@ router.get('/riwayat', verifikasiAnonOpsional, async (req, res) => {
   }
 });
 
+// DELETE /api/ai/sesi/:sesiId — user minta obrolan baru: hapus riwayat server
+// supaya sesi lama benar-benar hilang (privasi: komputer bersama/pinjam).
+router.delete('/sesi/:sesiId', async (req, res) => {
+  if (!AKTIF) return res.status(503).json({ error: 'fitur AI belum aktif' });
+  const sesi = String(req.params.sesiId || '');
+  if (!sesiValid(sesi)) return res.status(400).json({ error: 'sesi tidak valid' });
+  try {
+    await db.prepare('DELETE FROM ai_chat WHERE sesi_id=$1').run(sesi);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[ai/sesi delete]', e.message);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
 // POST /api/ai/chat
 // Body: { sesi?: hex64, isi: string(maks 2000), mode?: 'ngobrol'|'laporan' }
 // Tanpa Bearer = wajib sesi. Dengan Bearer anon-token = mode tiket.

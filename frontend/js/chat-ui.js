@@ -27,6 +27,9 @@
           '</div>' +
         '</div>' +
         '<div class="chat-header-aksi">' +
+          '<button type="button" class="btn-icon" id="btnAiBaru" aria-label="Mulai obrolan baru" title="Mulai obrolan baru" hidden>' +
+            '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>' +
+          '</button>' +
           '<button type="button" class="btn-icon tiket-salin" id="btnSalinTiketSesi" aria-label="Salin nomor tiket sesi ini" title="Salin nomor tiket sesi ini" hidden>' +
             '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>' +
           '</button>' +
