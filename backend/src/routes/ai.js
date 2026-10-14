@@ -668,29 +668,56 @@ router.post('/chat/stream', verifikasiAnonOpsional, async (req, res) => {
       balasan = balasan.replace(/\[DRAFT_FORM\][\s\S]*$/, '').trim();
     }
 
-    // JARING PENGAMAN: mode=laporan eksplisit tapi tag tidak keluar (model bandel)?
-    // → paksa generate draft via tanyaAIJson dari transkrip. User tidak perlu minta 2x.
+    // JARING PENGAMAN (2 tahap, deterministik): mode=laporan tanpa tag ->
+    // (a) AI meringkas percakapan jadi cerita orang-pertama (teks bebas),
+    // (b) backend SUSUN JSON SENDIRI: usia/kota/frekuensi/zat dari transkrip via regex — anti halusinasi.
     if (draftForm === null && mode === 'laporan') {
       try {
-        const transkrip = (function () {
-          // bangun transkrip dari riwayat + pesan ini (sama seperti siapkan-laporan)
-          let tr2 = 'PELAPOR: ' + isi + '\n';
-          // ambil sebagian riwayat yang sudah tersimpan sebelum chat ini
-          return tr2;
-        })();
-        const promptDraft = `Susun draft pengaduan dari percakapan berikut. Balas HANYA JSON:
-{"untuk":"Diri sendiri|Teman|Anggota keluarga|Orang lain / tetangga|Jaringan pengedar","kategori":["Ganja|Metamfetamina (Sabu)|Ekstasi|Heroin / Putaw|Obat resep disalahgunakan|Alkohol berlebihan|Lem / pelarut menguap|Belum yakin"],"frekuensi":"Pernah sekali / coba-coba|Beberapa kali|Sering (mingguan)|Hampir setiap hari|Tidak tahu / orang lain","usia":angka|null,"lokasi":"kota|null","cerita":"orang pertama dari fakta saja","darurat":false}
-ANTI-HALUSINASI: hanya fakta dari percakapan. Tidak disebut → null/'Belum yakin'.
-ATURAN PEMBAHARUAN (SANGAT PENTING): PESAN TERAKHIR PELAPOR berisi KOREKSI/perubahan (mis. umur baru, kota baru). Nilai di pesan TERAKHIR MENGganti nilai lama. Mis: kalau di akhir dia bilang 'usianya 23', pakai 23 WALAUPUN sebelumnya pernah disebut 16.
+        const transkripFull = messages.filter(function (m) { return m.role !== 'system'; })
+          .map(function (m) { return (m.role === 'user' ? 'PELAPOR: ' : 'AI: ') + m.content; })
+          .join('\n').slice(0, 5000);
 
-PERCAKAPAN (dari awal ke akhir — pesan TERAKHIR adalah koreksi terbaru):
-${messages.filter(function (m) { return m.role !== 'system'; }).map(function (m) { return (m.role === 'user' ? 'PELAPOR: ' : 'AI: ') + m.content; }).join('\n').slice(0, 5000)}`;
-        const rawD = await tanyaAIJson([{ role: 'user', content: promptDraft }]);
-        const bersih = rawD.replace(/```json|```/g, '').trim();
-        const awalD = bersih.indexOf('{'), akhirD = bersih.lastIndexOf('}');
-        if (awalD !== -1 && akhirD > awalD) {
-          draftForm = sanitasiDraft(JSON.parse(bersih.slice(awalD, akhirD + 1)), messages.map(function (m) { return m.content; }).join(' '));
+        // (a) Ringkasan orang-pertama via AI (tidak butuh JSON)
+        const ringkasan = await tanyaAI([{ role: 'user', content:
+          'Ringkas percakapan berikut jadi cerita pengaduan ORANG PERTAMA ("Saya...") — kronologis, 3-6 kalimat, hanya fakta yang disebut, tanpa tambahan. Cerita:\n' + transkripFull
+        }]);
+
+        // (b) Backend susun JSON dari transkrip (deterministik, anti-halusinasi)
+        const lower = transkripFull.toLowerCase() + ' ' + ringkasan.toLowerCase();
+        // untuk siapa: cek subjek pemakai
+        const orangLain = /\b(temen|teman|kawan|kakak|adik|abang|sepupu|ortu|orang\s+tua|tetangga|bilal)\b/.test(lower);
+        const akuPakai = /(^|\s)(aku|saya)\s+(yang\s+)?(pakai|memakai|hisap|nyium|mencoba|coba|ngonsumsi)/.test(lower);
+        const untuk = (orangLain && !akuPakai)
+          ? (/\b(kakak|adik|abang|sepupu)\b/.test(lower) ? 'Anggota keluarga'
+             : /\b(temen|teman|kawan)\b/.test(lower) ? 'Teman'
+             : /\b(ortu|orang\s+tua)\b/.test(lower) ? 'Anggota keluarga'
+             : /\b(tetangga|warga)\b/.test(lower) ? 'Orang lain / tetangga' : 'Teman')
+          : 'Diri sendiri';
+        // zait
+        const petaKat = [['ganja','Ganja'],['sabu','Metamfetamina (Sabu)'],['metamfetamin','Metamfetamina (Sabu)'],
+          ['ekstasi','Ekstasi'],['heroin','Heroin / Putaw'],['putaw','Heroin / Putaw'],
+          ['obat resep','Obat resep disalahgunakan'],['alkohol','Alkohol berlebihan'],['miras','Alkohol berlebihan'],
+          ['lem','Lem / pelarut menguap'],['kamper','Lem / pelarut menguap'],['inhalan','Lem / pelarut menguap']];
+        const kategori = [];
+        for (const [kata, nilai] of petaKat) {
+          if (lower.includes(kata) && kategori.indexOf(nilai) === -1) kategori.push(nilai);
         }
+        if (!kategori.length) kategori.push('Belum yakin');
+        // frekuensi
+        const frekuensi = /(tiap\s*hari|hampir\s*tiap|setiap\s*hari)/.test(lower) ? 'Hampir setiap hari'
+          : /beberapa\s*kali/.test(lower) ? 'Beberapa kali'
+          : /(sekali|coba-coba)/.test(lower) ? 'Pernah sekali / coba-coba'
+          : /(sering|mingguan)/.test(lower) ? 'Sering (mingguan)' : 'Tidak tahu / orang lain';
+        // usia
+        let usia = null;
+        const mU = lower.match(/\b(1[0-9]|20)\s*(tahun|thn|yo)?\b/);
+        if (mU) usia = Number(mU[1]);
+        // lokasi: kata setelah "di " yang kapital di teks asli, atau "kota X"
+        let lokasi = null;
+        const mL = messages.map(m => m.content).join(' ').match(/\b(?:di|kota)\s+([A-Z][a-zA-Z\s]{2,30})/);
+        if (mL) lokasi = mL[1].trim();
+
+        draftForm = { untuk, kategori, frekuensi, usia, lokasi, cerita: ringkasan, darurat: /overdose|mendesak|darurat|sekarang juga/i.test(lower), sinyalKrisis: /bunuh diri|membunuh diri|akhiri hidup|overdosis/i.test(lower) };
       } catch (e2) {
         console.error('[ai/stream garantor]', e2.message);
       }
