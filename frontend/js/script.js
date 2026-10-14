@@ -1206,28 +1206,60 @@
         try { headers['Authorization'] = 'Bearer ' + await window.RuangPulihRT.mintaAnonToken(tiket); } catch (e2) {}
       }
 
-      // Bubble AI live — text berubah saat chunk masuk (efek mengetik nyata).
-      var divAi = document.createElement('div');
-      divAi.className = 'msg in';
-      divAi.setAttribute('data-dari', 'Sahabat AI');
-      var pAi = document.createElement('p');
-      pAi.textContent = '';
-      var tA = document.createElement('span');
-      tA.className = 'mtime';
-      tA.textContent = jam();
-      divAi.appendChild(pAi); divAi.appendChild(tA);
-      chatBody.appendChild(divAi);
+      // Status TERPISAH dari bubble: elemen sendiri di atas bubble jawaban.
+      // (dulu label+dots disisipkan DI DALAM bubble -> nyangkut/dianggap isi chat)
+      var statusAi = document.createElement('div');
+      statusAi.className = 'ai-status';
+      statusAi.id = 'aiStatus';
+      statusAi.innerHTML = '<span class="ai-status-ikon"></span><span class="ai-status-teks">&#128488; Menyiapkan...</span>';
+      chatBody.appendChild(statusAi);
       chatBody.scrollTop = chatBody.scrollHeight;
+      var stEl = statusAi.querySelector('.ai-status-teks');
+      var ikonEl = statusAi.querySelector('.ai-status-ikon');
+      function setFase(f) {
+        window.__aiFaseAktif = f;
+        if (f === 'berpikir') {
+          statusAi.classList.add('berpikir'); statusAi.classList.remove('menulis');
+          ikonEl.innerHTML = '&#129504;';  // otak
+          stEl.textContent = 'Sahabat AI sedang berpikir...';
+        } else if (f === 'menulis') {
+          statusAi.classList.add('menulis'); statusAi.classList.remove('berpikir');
+          ikonEl.innerHTML = '&#9997;&#65039;';  // pena
+          stEl.textContent = 'Sahabat AI sedang mengetik...';
+        }
+      }
+      setFase('berpikir');
 
-      // Status dinamis: fase dari server (berpikir/menulis) + fallback timer.
-      var stLabel = document.createElement('span');
-      stLabel.className = 'typing-label';
-      stLabel.textContent = 'Sahabat AI membaca ceritamu...';
-      divAi.insertBefore(stLabel, pAi);
-      var bs = document.createElement('span');
-      bs.className = 'dots';
-      bs.innerHTML = '<i></i><i></i><i></i>';
-      divAi.insertBefore(bs, pAi);
+      // Fallback: kalau server lambat kirim fase, label berubah berbasis durasi.
+      var fallbackTimers = [
+        [20000, 'Masih berpikir... pertanyaanmu cukup dalam'],
+        [40000, 'Model sedang sibuk — hampir ada hasilnya'],
+        [60000, 'Mohon tunggu sebentar lagi...']
+      ];
+      fallbackTimers.forEach(function (ft) {
+        setTimeout(function () {
+          if (window.__aiFaseAktif === 'berpikir' && statusAi.parentNode) {
+            stEl.textContent = ft[1];
+          }
+        }, ft[0]);
+      });
+
+      // Bubble AI live — muncul SETELAH fase menulis dimulai (chunk pertama).
+      var divAi = null, pAi = null;
+      function pastikanBubbleAi() {
+        if (divAi) return;
+        divAi = document.createElement('div');
+        divAi.className = 'msg in';
+        divAi.setAttribute('data-dari', 'Sahabat AI');
+        pAi = document.createElement('p');
+        var tA = document.createElement('span');
+        tA.className = 'mtime';
+        tA.textContent = jam();
+        divAi.appendChild(pAi); divAi.appendChild(tA);
+        // bubble muncul SETELAH status element
+        chatBody.insertBefore(divAi, statusAi.nextSibling || null);
+        chatBody.scrollTop = chatBody.scrollHeight;
+      }
 
       try {
         var res = await fetch('/api/ai/chat/stream', { method: 'POST', headers: headers, body: JSON.stringify(payload) });
@@ -1256,16 +1288,11 @@
               var ev = JSON.parse(dat);
               if (ev.error) throw new Error(ev.error);
               if (ev.fase === 'berpikir') {
-                stLabel.textContent = 'Sahabat AI sedang berpikir...';
-                window.__aiFaseAktif = 'berpikir';
+                setFase('berpikir');   // status: otak + "sedang berpikir"
               } else if (ev.fase === 'menulis') {
-                window.__aiFaseAktif = 'menulis';
-                // Mulai menulis → label & dots KELUAR dari bubble (jangan gabung dgn isi)
-                if (stLabel.parentNode) stLabel.remove();
-                if (bs.parentNode) bs.remove();
+                setFase('menulis');    // status: pena + "sedang mengetik"
               } else if (ev.chunk) {
-                if (stLabel.parentNode) stLabel.remove();  // jangan gabung dgn output
-                if (bs.parentNode) bs.remove();
+                pastikanBubbleAi();    // bubble AI dibuat di bawah status
                 teksAi += ev.chunk;
                 // live render markdown
                 pAi.innerHTML = renderAiMarkdown(teksAi);
@@ -1273,8 +1300,8 @@
               }
               if (ev.done) {
                 window.__aiSelesaiThis = true;
-                if (bs.parentNode) bs.remove();
-                if (stLabel.parentNode) stLabel.remove();
+                statusAi.remove();   // status hilang total — tidak nyangkut ke bubble
+                pastikanBubbleAi();
                 if (ev.sesiId) window.__aiSesi = ev.sesiId;
                 // final render + draftForm
                 pAi.innerHTML = '';

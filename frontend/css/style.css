@@ -815,6 +815,20 @@ body.chat-terbuka .navbar { z-index: 50; }
 @keyframes msgL { from { opacity: 0; transform: translateX(-16px) scale(.96); } }
 @keyframes msgR { from { opacity: 0; transform: translateX(16px) scale(.96); } }
 .mtime { display: block; font-size: .66rem; opacity: .65; margin-top: 5px; font-weight: 600; }
+/* ===== Status AI TERPISAH dari bubble chat =====
+   Elemen sendiri: ikon otak (berpikir) / pena (mengetik) + label.
+   Bubble jawaban muncul TERPISAH di bawahnya setelah chunk pertama. */
+.ai-status {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 9px;
+  padding: 10px 15px; border-radius: 16px; border-bottom-left-radius: 5px;
+  background: var(--surface-2); box-shadow: var(--in);
+  max-width: 80%; animation: msgL var(--dur-lg) var(--ease) both;
+}
+.ai-status-ikon { font-size: 1rem; flex: none; animation: aiPulse 1.6s var(--ease-io) infinite; }
+.ai-status.berpikir .ai-status-ikon { animation-duration: 1.2s; }  /* berpikir: denyut lebih cepat */
+.ai-status.menulis .ai-status-ikon { animation-duration: 2.2s; }   /* mengetik: denyut santai */
+.ai-status-teks { font-size: .8rem; color: var(--text-soft); }
+@keyframes aiPulse { 0%, 100% { opacity: .45; transform: scale(.92); } 50% { opacity: 1; transform: scale(1.08); } }
 .typing { align-self: flex-start; display: flex; gap: 5px; padding: 15px 18px; border-radius: 18px; background: var(--surface-2); box-shadow: var(--out-sm); }
 .typing { display: flex; align-items: center; gap: 10px; }
 .typing .dots { display: inline-flex; gap: 4px; flex: none; }
