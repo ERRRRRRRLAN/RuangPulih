@@ -71,7 +71,7 @@ ATURAN KERAS:
 
 AKSI OTOMATIS [DRAFT_FORM]:
 - Jika pengguna JELAS meminta untuk membuat/memodifikasi/mengisi laporan (contoh: "buat laporannya", "isi formulir", "modifikasi form", "siapkan laporannya"), AKHIRI balasanmu dengan tag ini di baris baru terpisah:
-[DRAFT_FORM]{"untuk":"...","kategori":["..."],"frekuensi":"...","cerita":"...","darurat":false}
+[DRAFT_FORM]{"untuk":"...","kategori":["..."],"frekuensi":"...","usia":16,"lokasi":"Tangerang Selatan","cerita":"...","darurat":false}
 - Isi JSON dari informasi yang sudah diceritakan pengguna. cerita WAJIB orang pertama, merangkum semua fakta yang dia share. JANGAN mengarang.
 - Format tag: [DRAFT_FORM]<json satu baris> — front-end akan otomatis membuka form pengaduan dan mengisi kolom-kolomnya.
 - Jangan gunakan tag ini jika pengguna hanya cerita biasa tanpa permintaan laporan.`;
@@ -127,10 +127,22 @@ function sanitasiDraft(d) {
   // cerita: buang tag DRAFT_FORM yang tersangkut
   const cerita = String(d.cerita || '').replace(/\[DRAFT_FORM\][\s\S]*/g, '').trim().slice(0, 5000);
 
+    // usia: ambil angka pertama 1-120
+    let usia = Number(d.usia) || null;
+    if (!usia) {
+      const m = String(d.untuk || '').match(/(1[0-9]|20|[1-9])\s*(tahun|thn|yo)?/);
+      if (m) usia = Number(m[1]);
+    }
+    if (usia && (usia < 1 || usia > 120)) usia = null;
+    // lokasi: buang tag & batasi panjang
+    const lokasi = String(d.lokasi || '').replace(/\[DRAFT_FORM\][\s\S]*/g, '').trim().slice(0, 60) || null;
+
   return {
     untuk: untukFix,
     kategori: kategori.slice(0, 3),
     frekuensi: freqFix,
+    usia,
+    lokasi,
     cerita,
     darurat: !!d.darurat,
     sinyalKrisis: !!d.sinyalKrisis,
@@ -407,6 +419,8 @@ Balas HANYA JSON valid (tanpa markdown, tanpa penjelasan):
  "untuk": "Diri sendiri"|"Teman"|"Anggota keluarga"|"Orang lain / tetangga"|"Jaringan pengedar",
  "kategori": ["maksimal 3 dari: Ganja","Metamfetamina (Sabu)","Ekstasi","Heroin / Putaw","Obat resep disalahgunakan","Alkohol berlebihan","Lem / pelarut menguap","Belum yakin"],
  "frekuensi": ""|"Pernah sekali / coba-coba"|"Beberapa kali"|"Sering (mingguan)"|"Hampir setiap hari"|"Tidak tahu / orang lain",
+ "usia": angka atau null,
+ "lokasi": "nama kota/wilayah bila disebut, atau null",
  "cerita": "3-6 kalimat orang pertama, kronologis, fakta dari percakapan saja",
  "darurat": true|false,
  "sinyalKrisis": true|false}
@@ -438,6 +452,8 @@ ${transkrip}`;
       untuk: String(draft.untuk || 'Diri sendiri'),
       kategori: Array.isArray(draft.kategori) ? draft.kategori.slice(0, 3).map(String) : ['Belum yakin'],
       frekuensi: String(draft.frekuensi || ''),
+      usia: Number(draft.usia) || null,
+      lokasi: String(draft.lokasi || '').slice(0, 60),
       cerita: String(draft.cerita || '').slice(0, 5000),
       darurat: !!draft.darurat,
       sinyalKrisis: !!draft.sinyalKrisis,

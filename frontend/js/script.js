@@ -1495,6 +1495,22 @@
       cerita.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
+    // usia (stepper)
+    if (d.usia && nsData['usia']) {
+      var inputUsia = document.getElementById('inputUsia');
+      if (inputUsia) {
+        inputUsia.value = String(d.usia);
+        nsData['usia'].value = String(d.usia);
+      }
+    }
+
+    // lokasi (kota/wilayah)
+    var inputLokasi = document.getElementById('inputLokasi');
+    if (inputLokasi && d.lokasi) {
+      inputLokasi.value = d.lokasi;
+      inputLokasi.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
     // darurat (radio Ya/Tidak) + sync visual
     var radioDarurat = formPengaduan.querySelector('input[name="darurat"][value="' + (d.darurat ? 'Ya' : 'Tidak') + '"]');
     if (radioDarurat) {
