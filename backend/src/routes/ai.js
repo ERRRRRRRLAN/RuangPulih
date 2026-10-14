@@ -131,12 +131,12 @@ async function tanyaAI(messages) {
   for (let attempt = 0; attempt < Math.min(semuanya.length, 5); attempt++) {
     const key = nextKey();
     const ac = new AbortController();
-    const timeout = setTimeout(() => ac.abort(), 90_000);
+    const timeout = setTimeout(() => ac.abort(), 120_000);
     try {
       const res = await fetch(AI_BASE.replace(/\/$/, '') + '/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-        body: JSON.stringify({ model: AI_MODEL, messages, max_tokens: config.AI_MAX_TOKENS, temperature: 0.7 }),
+        body: JSON.stringify({ model: AI_MODEL, messages, max_tokens: Math.max(config.AI_MAX_TOKENS, 4000), temperature: 0.7 }),
         signal: ac.signal,
       });
       if (!res.ok) {
@@ -149,7 +149,7 @@ async function tanyaAI(messages) {
       if (!isi || !String(isi).trim()) throw new Error('AI respons kosong');
       return String(isi).trim();
     } catch (e) {
-      if (e.name === 'AbortError') { lastErr = new Error('AI timeout 90s'); continue; }
+      if (e.name === 'AbortError') { lastErr = new Error('AI timeout 120s'); continue; }
       if (!lastErr) throw e;
       lastErr = e; break;
     } finally { clearTimeout(timeout); }

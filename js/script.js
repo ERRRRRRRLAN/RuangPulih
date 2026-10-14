@@ -1148,9 +1148,9 @@
     // ===== MODE AI (Sahabat AI) =====
     if (window.__chatMode === 'ai') {
       cekKrisis(teks);  // deteksi krisis sejak awal dari pesan user
-      // Sesuai mode: pakai sesi_id (tanpa tiket), fallback tiket.
+      // Sesi AI (sessionStorage — hilang saat browser ditutup).
       var sesiId = null;
-      try { sesiId = localStorage.getItem('ai-sesi'); } catch (e) {}
+      try { sesiId = sessionStorage.getItem('ai-sesi'); } catch (e) {}
       try {
         var payload = { isi: teks, mode: 'ngobrol' };
         if (sesiId) payload.sesi = sesiId;
@@ -1165,7 +1165,7 @@
         hapusMengetik();
         if (!r.ok) throw new Error(j.error || 'gagal');
         if (!sesiId && j.sesiId) {
-          try { localStorage.setItem('ai-sesi', j.sesiId); } catch (e) {}
+          try { sessionStorage.setItem('ai-sesi', j.sesiId); } catch (e) {}
         }
         bubble(j.balasan || '(AI tidak membalas)', 'in');
         tawarkanLaporan();  // setelah 2 balasan AI: tawarkan draft laporan sekali
@@ -1215,21 +1215,22 @@
   })();
 
   // ===== SAHABAT AI: mulai tanpa tiket =====
-  // "Ngobrol dengan Sahabat AI" — buat/ambil sesi anonim, langsung buka ruang chat.
+  // Sesi AI kini di sessionStorage: mati saat browser ditutup — orang lain yang
+  // pakai browser yang sama TIDAK bisa nyambung ke percakapan kamu.
   var btnMulaiAi = $('#btnMulaiAi');
   if (btnMulaiAi) {
     btnMulaiAi.addEventListener('click', async function () {
       btnMulaiAi.disabled = true;
       try {
-        // 1. Sesi anonim (localStorage persist, per browser).
+        // 1. Sesi anonim (sessionStorage — hilang saat browser ditutup).
         var sesi = null;
-        try { sesi = localStorage.getItem('ai-sesi'); } catch (e) {}
+        try { sesi = sessionStorage.getItem('ai-sesi'); } catch (e) {}
         if (!sesi) {
           var r = await fetch('/api/ai/sesi', { method: 'POST' });
           var j = await r.json();
           if (!r.ok) throw new Error(j.error || 'gagal membuat sesi');
           sesi = j.sesiId;
-          try { localStorage.setItem('ai-sesi', sesi); } catch (e) {}
+          try { sessionStorage.setItem('ai-sesi', sesi); } catch (e) {}
         }
 
         // 2. Buka ruang chat dalam mode AI.
@@ -1237,8 +1238,9 @@
         window.__tiketChat = null;   // bukan chat konselor
         chatSelesaiFlag = false;
         judulChat.textContent = 'Sahabat AI — Ruang Pulih';
-        sesiLabel.textContent = 'Anonim · tanpa tiket';
+        sesiLabel.textContent = 'Anonim · obrolan baru = sesi baru';
         var bss = $('#btnSalinTiketSesi'); if (bss) bss.hidden = true;
+        var bnb = $('#btnAiBaru'); if (bnb) bnb.hidden = false;  // tombol obrolan baru
         formTiket.hidden = true;
         chatIsi.hidden = false;
         chatBody.innerHTML = '';
@@ -1248,13 +1250,29 @@
         btnSend.disabled = false;
         inputChat.placeholder = 'Cerita apa saja ke Sahabat AI...';
         quickPanel.style.display = 'none';
-        bubble('Halo! Aku Sahabat AI — teman ceritamu di Ruang Pulih. Bebas cerita apa aja, tanpa nama, tanpa tiket. Kalau suatu saat mau bicara dengan konselor manusia, aku bantu siapkan. Mau mulai dari mana?', 'in');
+        bubble('Halo! Aku Sahabat AI — teman ceritamu di Ruang Pulih. Bebas cerita apa aja, tanpa nama, tanpa tiket. Obrolanmu hilang otomatis saat browser ditutup. Kalau mau mulai fresh lagi, klik ikon + di atas. Mau mulai dari mana?', 'in');
         setTimeout(function () { inputChat.focus(); }, 100);
       } catch (e) {
         toast('Gagal menyiapkan Sahabat AI: ' + e.message);
       } finally {
         btnMulaiAi.disabled = false;
       }
+    });
+  }
+
+  // Tombol "+ Mulai obrolan baru": buang sesi lama, buat sesi fresh.
+  // Riwayat lama di server IKTU DIBUANG juga (DELETE dari server).
+  var btnAiBaru = $('#btnAiBaru');
+  if (btnAiBaru) {
+    btnAiBaru.addEventListener('click', async function () {
+      var lama = null;
+      try { lama = sessionStorage.getItem('ai-sesi'); } catch (e) {}
+      if (lama) {
+        try { await fetch('/api/ai/sesi/' + lama, { method: 'DELETE' }); } catch (e) {}
+        try { sessionStorage.removeItem('ai-sesi'); } catch (e) {}
+      }
+      // Trigger ulang tombol mulai AI (buat sesi baru + intro).
+      btnMulaiAi.click();
     });
   }
 
@@ -1326,7 +1344,7 @@
 
   async function susunDraftLaporan() {
     var sesi = null;
-    try { sesi = localStorage.getItem('ai-sesi'); } catch (e) {}
+    try { sesi = sessionStorage.getItem('ai-sesi'); } catch (e) {}
     if (!sesi) { toast('Sesi AI tidak ditemukan.'); return; }
     tampilkanMengetik();
     try {
