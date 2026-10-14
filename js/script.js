@@ -1144,10 +1144,29 @@
     bubble(teks, 'out');
     inputChat.value = '';
     btnSend.disabled = true;
-    // Mode AI: kirim ke /api/ai/chat (Sahabat AI), tampilkan balasan sbg bubble 'in'.
+
+    // ===== MODE AI (Sahabat AI) =====
     if (window.__chatMode === 'ai') {
+      // Sesuai mode: pakai sesi_id (tanpa tiket), fallback tiket.
+      var sesiId = null;
+      try { sesiId = localStorage.getItem('ai-sesi'); } catch (e) {}
       try {
-        var j = await window.RuangPulihRT.kirimAi(tiket, teks, 'ngobrol');
+        var payload = { isi: teks, mode: 'ngobrol' };
+        if (sesiId) payload.sesi = sesiId;
+        var headers = { 'Content-Type': 'application/json' };
+        if (tiket) {
+          // tiket mode: pakai anon token yang sudah diminta RuangPulihRT
+          payload = { isi: teks, mode: 'ngobrol' };
+          var t = sessionStorage.getItem('ai-cek') || '';
+          headers['Authorization'] = 'Bearer ' + await window.RuangPulihRT.mintaAnonToken(tiket);
+        }
+        var r = await fetch('/api/ai/chat', { method: 'POST', headers: headers, body: JSON.stringify(payload) });
+        var j = await r.json();
+        if (!r.ok) throw new Error(j.error || 'gagal');
+        if (!sesiId && j.sesiId) {
+          // server kirim sesi baru — simpan
+          try { localStorage.setItem('ai-sesi', j.sesiId); } catch (e) {}
+        }
         bubble(j.balasan || '(AI tidak membalas)', 'in');
       } catch (e) {
         bubble('Sahabat AI: ' + e.message, 'in');
@@ -1156,6 +1175,8 @@
       inputChat.focus();
       return;
     }
+
+    // ===== MODE KONSELOR (tiket) =====
     if (rtSiap) {
       try { await window.RuangPulihRT.kirimPesan(tiket, teks); }
       catch (e) { bubble('Pesan gagal terkirim: ' + e.message, 'in'); }
@@ -1190,6 +1211,65 @@
       }
     });
   })();
+
+  // ===== SAHABAT AI: mulai tanpa tiket =====
+  // "Ngobrol dulu dengan Sahabat AI" — buat/ambil sesi anonim, langsung buka ruang chat.
+  var btnMulaiAi = $('#btnMulaiAi');
+  if (btnMulaiAi) {
+    btnMulaiAi.addEventListener('click', async function () {
+      btnMulaiAi.disabled = true;
+      btnMulaiAi.textContent = 'Menyiapkan...';
+      try {
+        // 1. Sesi anonim (localStorage persist, per browser).
+        var sesi = null;
+        try { sesi = localStorage.getItem('ai-sesi'); } catch (e) {}
+        if (!sesi) {
+          var r = await fetch('/api/ai/sesi', { method: 'POST' });
+          var j = await r.json();
+          if (!r.ok) throw new Error(j.error || 'gagal membuat sesi');
+          sesi = j.sesiId;
+          try { localStorage.setItem('ai-sesi', sesi); } catch (e) {}
+        }
+
+        // 2. Buka ruang chat dalam mode AI.
+        window.__chatMode = 'ai';
+        window.__tiketChat = null;   // bukan chat konselor
+        chatSelesaiFlag = false;
+        judulChat.textContent = 'Sahabat AI — Ruang Pulih';
+        sesiLabel.textContent = 'Anonim · tanpa tiket · 40 pesan/hari';
+        var bss = $('#btnSalinTiketSesi'); if (bss) bss.hidden = true;
+        formTiket.hidden = true;
+        chatIsi.hidden = false;
+        chatBody.innerHTML = '';
+
+        // 3. Tampilkan tab mode (AI aktif); tandai AI terpilih.
+        var tabs = $('#chatModeTabs');
+        if (tabs) {
+          tabs.hidden = false;
+          $$('#chatModeTabs .mode-tab').forEach(function (b) {
+            var isAi = b.getAttribute('data-mode') === 'ai';
+            b.classList.toggle('aktif', isAi);
+          });
+        }
+
+        // 4. Input aktif + intro AI.
+        inputChat.disabled = false;
+        btnSend.disabled = false;
+        inputChat.placeholder = 'Cerita apa saja ke Sahabat AI...';
+        quickPanel.style.display = 'none';  // quick replies hanya utk konselor
+        bubble('Halo! Aku Sahabat AI — teman ceritamu di Ruang Pulih. Bebas cerita apa aja, tanpa nama, tanpa tiket. Semua yang kamu tulis hanya tersimpan di perangkatmu (sesi anonim). Kalau suatu saat mau bicara dengan konselor manusia, aku bantu siapkan semuanya. Mau mulai dari mana?', 'in');
+        setTimeout(function () { inputChat.focus(); }, 100);
+      } catch (e) {
+        toast('Gagal menyiapkan Sahabat AI: ' + e.message);
+      } finally {
+        btnMulaiAi.disabled = false;
+        btnMulaiAi.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><circle cx="12" cy="12" r="9"/><path d="M12 8v.01M12 12v4"/></svg>Ngobrol dulu dengan Sahabat AI';
+      }
+    });
+  }
+
+  // Update handler tab mode: kalau pindah ke AI dari konselor TANPA tiket, buka sesi.
+  // (Logika tab lama di bawah tetap berlaku utk pelapor ber-tiket.)
 
   formChat.addEventListener('submit', function (e) {
     e.preventDefault();

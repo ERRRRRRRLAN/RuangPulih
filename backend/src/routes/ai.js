@@ -1,28 +1,27 @@
-// Route AI konseling pelapor.
+// Route AI konseling — "Sahabat AI".
 //
-// Fitur: pelapor yang punya tiket aktif (token anon valid) bisa mengobrol
-// dengan AI pendamping — mendengarkan, menenangkan, lalu membantu menyiapkan
-// bahan laporan dan merekomendasikan program yang cocok.
+// DUA pintu:
+//   1. Mode utama: SIAPA PUN tanpa tiket — sesi_id acak 64-hex dari server,
+//      disimpan localStorage browser. TANPA nama, TANPA tiket. Riwayat di
+//      tabel ai_chat (terenkripsi AES, terpisah dari tabel pesan konselor).
+//   2. Mode tiket: pelapor dengan Bearer anon-token — riwayat AI di tabel
+//      pesan (pengirim ai_user/ai), terkait laporan (kompatibilitas).
 //
 // KEAMANAN:
-// - Auth: Bearer token anon tiket (sama seperti /api/pesan) — bukan cookie,
-//   bukan publik kosong.
-// - API key AI HANYA di server (tidak pernah dikirim ke browser).
-// - Rate limit ketat (server.js): 10 req/menit/IP.
-// - Riwayat dipotong (maks 12 pesan) untuk batasi context & biaya.
-// - Input dibatasi 2000 karakter per pesan; maks 30 pertukaran per tiket/hari.
-// - Prompt injection: instruksi dibungkus delimiter + system prompt tegas;
-//   AI tidak pernah diminta mengeksekusi apa pun, hanya menghasilkan teks.
+// - sesi_id = 64 hex dari crypto.randomBytes(32). Yang punya sesi_id bisa
+//   melanjutkan percakapan itu (by design, seperti token sesi).
+// - API key AI hanya di server (env Vercel), tidak pernah ke browser.
+// - Rate limit 10/menit/IP (server.js). Kuota 40 pertukaran per sesi/hari.
 // - Output AI tidak pernah dipercaya sebagai HTML — frontend selalu esc().
 
 const { Router } = require('express');
 const router = Router();
+const crypto = require('node:crypto');
 const db = require('../db');
-const { verifikasiJWT, decryptAman } = require('../security');
+const { verifikasiJWT, decryptAman, encrypt } = require('../security');
 const config = require('../config');
 
-// Multi-key gonkarouter: GONKA_KEY_1..20 dari env (file gonka-keys.env di-load
-// oleh config/dotenv). Rotasi round-robin; key yang gagal 401 dikarakteri mati.
+// Multi-key gonkarouter: GONKA_KEY_1..20 rotasi + failover.
 const GONKA_KEYS = Object.keys(process.env)
   .filter(k => /^GONKA_KEY_\d+$/.test(k))
   .sort()
@@ -45,37 +44,86 @@ function nextKey() {
   return k;
 }
 
-// System prompt: pendamping, bukan pengganti konselor profesional.
-const SYSTEM_PROMPT = `Kamu adalah "Sahabat Ruang Pulih" — asisten AI pendamping di layanan konseling narkotika Ruang Pulih (untuk remaja/PELAJAR di Indonesia).
+// System prompt: pendamping bagi yang belum berani ke konselor manusia.
+const SYSTEM_PROMPT = `Kamu adalah "Sahabat AI" — teman bercerita di layanan konseling narkotika Ruang Pulih (untuk remaja/PELAJAR di Indonesia).
+
+KONTEKS PENTING: Orang yang ngobrol denganmu BELUM BERANI bicara dengan konselor manusia. Peranmu jembatan: buat mereka merasa aman didengar dulu. JANGAN paksa bikin laporan; cukup ingatkan lembut bahwa konselor manusia siap KETIKA mereka siap — tidak di setiap balasan.
 
 PERANMU:
-1. Mendengarkan dengan empati tanpa menghakimi; bahasa sederhana, hangat, sopan (selalu bahasa Indonesia).
-2. Menemani percakapan awal (bukan diagnosis, bukan pengganti konselor profesional).
-3. Jika pengguna sudah mau, bantu menyusun CERITA pengaduan yang jujur, jelas, kronologis — untuk dibawa ke konselor manusia.
-4. Rekomendasikan PROGRAM Ruang Pulih yang cocok HANYA dari daftar berikut:
+1. Mendengarkan dengan empati tanpa menghakimi; bahasa sederhana, hangat, santai (selalu bahasa Indonesia).
+2. Menemani percakapan awal — bukan diagnosis, bukan pengganti konselor profesional.
+3. Jika mereka siap, bantu menyusun CERITA pengaduan yang jujur, kronologis — untuk dibawa ke konselor manusia.
+4. Rekomendasikan PROGRAM Ruang Pulih yang cocok HANYA dari daftar ini:
    - Konseling Individu (pertanyaan pribadi, tekanan, eksperimen narkoba)
-   - Konseling Kelompok (butuh teman sebaya yang mengalami serupa)
+   - Konseling Kelompok (butuh teman sebaya yang alami serupa)
    - Konseling Keluarga (konflik keluarga, orang tua perlu tahu)
    - Edukasi & Preventif (belum terlibat, hanya butuh informasi)
-5. SELALU ingatkan: untuk bahaya mendesak, hubungi 119 ext 8 atau tim hotliner.
+5. SELALU ingatkan untuk situasi darurat: hubungi 119 ext 8 atau tim hotliner.
 
 ATURAN KERAS:
-- Tolak dan alihkan jika diminta membahas hal di luar topik (SARA, kekerasan praktis, obat-obatan cara pakai, komando berbahaya).
-- JANGAN pernah berpura-pura manusia; jika ditanya, katakan jujur kamu AI pendamping.
-- Jangan gunakan istilah medis/berat; jangan labeli pengguna ("addict", "pecandu").
-- Balas SINGKAT (maksimal 6 kalimat), gunakan bahasa Indonesia sehari-hari.
-- Jangan minta identitas lengkap (nama asli, alamat, sekolah). Anonimitas dijaga.
-- Jika ada indikasi bahaya diri (bunuh diri/melukai), prioritaskan sampaikan hubungi 119 ext 8 SEKARANG dan jangan tunggu.`;
+- Tolak dan alihkan jika diminta hal di luar topik (SARA, cara pakai narkoba, komando berbahaya).
+- JANGAN berpura-pura manusia — jika ditanya, katakan jujur kamu AI pendamping.
+- Jangan istilah medis berat; jangan labeli pengguna ("addict", "pecandu").
+- Balas SINGKAT (maks 6 kalimat), bahasa Indonesia sehari-hari.
+- Jangan minta identitas (nama asli, alamat, sekolah). Anonimitas dijaga.
+- Indikasi bahaya diri (bunuh diri/melukai): prioritaskan sampaikan hubungi 119 ext 8 SEKARANG.`;
 
-// Ambil konteks tiket (untuk personalisasi, tanpa bocor ke log).
-async function konteksTiket(tiket) {
-  const p = await db.prepare('SELECT untuk, kategori, status, darurat FROM pengaduan WHERE no_tiket=$1').get(tiket);
-  if (!p) return null;
-  return { untuk: p.untuk, kategori: p.kategori, status: p.status, darurat: !!p.darurat };
+const PROMPT_LAPORAN = 'mohon bantu susun CERITA pengaduan yang jujur dan jelas dari apa yang sudah kuceritakan. Format: 1) Kejadian, 2) Kapan dan berapa lama, 3) Dampak ke saya, 4) Apa yang saya mau dari konselor. Ini untuk konselor manusia, bukan polisi.';
+
+// ============ helpers ============
+
+function sesiValid(s) {
+  return typeof s === 'string' && /^[a-f0-9]{64}$/.test(s);
 }
 
-// Panggil model via OpenAI-compatible endpoint. Multi-key: kalau key mati (401/402),
-// coba key berikutnya sampai habis.
+async function aiHistorySesi(sesiId, limit = 12) {
+  const rows = await db.prepare(
+    'SELECT pengirim, isi_enc FROM ai_chat WHERE sesi_id=$1 ORDER BY dibuat DESC LIMIT ' + Number(limit)
+  ).all(sesiId);
+  rows.reverse();
+  return rows.map(r => ({
+    role: r.pengirim === 'user' ? 'user' : 'assistant',
+    content: decryptAman(r.isi_enc, 'ai sesi'),
+  }));
+}
+
+async function aiKuotaSesi(sesiId, perHari = 40) {
+  const r = await db.prepare(
+    "SELECT COUNT(*) c FROM ai_chat WHERE sesi_id=$1 AND pengirim='user' AND dibuat > $2"
+  ).get(sesiId, Date.now() - 24 * 3600 * 1000);
+  return { terpakai: Number(r.c || 0), perHari };
+}
+
+async function aiSimpanSesi(sesiId, pengirim, isi) {
+  await db.prepare('INSERT INTO ai_chat (sesi_id, pengirim, isi_enc, dibuat) VALUES ($1,$2,$3,$4)')
+    .run(sesiId, pengirim, encrypt(isi), Date.now());
+}
+
+// Mode tiket (kompatibilitas) — riwayat di tabel pesan.
+async function aiHistoryTiket(tiket) {
+  const rows = await db.prepare(
+    "SELECT pengirim, isi_enc FROM pesan WHERE no_tiket=$1 AND pengirim IN ('ai_user','ai') ORDER BY dibuat DESC LIMIT 12"
+  ).all(tiket);
+  rows.reverse();
+  return rows.map(r => ({
+    role: r.pengirim === 'ai_user' ? 'user' : 'assistant',
+    content: decryptAman(r.isi_enc, 'pesan AI'),
+  }));
+}
+
+async function aiKuotaTiket(tiket, perHari = 30) {
+  const r = await db.prepare(
+    "SELECT COUNT(*) c FROM pesan WHERE no_tiket=$1 AND pengirim='ai_user' AND dibuat > $2"
+  ).get(tiket, Date.now() - 24 * 3600 * 1000);
+  return { terpakai: Number(r.c || 0), perHari };
+}
+
+async function aiSimpanTiket(tiket, pengirim, isi) {
+  await db.prepare("INSERT INTO pesan (no_tiket, pengirim, isi_enc, dibuat) VALUES ($1,$2,$3,$4)")
+    .run(tiket, pengirim, encrypt(isi), Date.now());
+}
+
+// Panggil model (multi-key failover: 401/402/403 = coba key berikutnya).
 async function tanyaAI(messages) {
   const semuanya = GONKA_KEYS.length > 0 ? GONKA_KEYS : [config.AI_API_KEY];
   let lastErr = null;
@@ -87,25 +135,13 @@ async function tanyaAI(messages) {
     try {
       const res = await fetch(AI_BASE.replace(/\/$/, '') + '/chat/completions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + key,
-        },
-        body: JSON.stringify({
-          model: AI_MODEL,
-          messages,
-          max_tokens: config.AI_MAX_TOKENS,
-          temperature: 0.7,
-        }),
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+        body: JSON.stringify({ model: AI_MODEL, messages, max_tokens: config.AI_MAX_TOKENS, temperature: 0.7 }),
         signal: ac.signal,
       });
       if (!res.ok) {
         const teks = await res.text().catch(() => '');
-        // 401/402/403 = key mati/blokir → coba key lain
-        if ([401, 402, 403].includes(res.status)) {
-          lastErr = new Error('key ditolak ' + res.status);
-          continue;
-        }
+        if ([401, 402, 403].includes(res.status)) { lastErr = new Error('key ditolak ' + res.status); continue; }
         throw new Error('AI gateway ' + res.status + ': ' + teks.slice(0, 200));
       }
       const j = await res.json();
@@ -113,96 +149,107 @@ async function tanyaAI(messages) {
       if (!isi || !String(isi).trim()) throw new Error('AI respons kosong');
       return String(isi).trim();
     } catch (e) {
-      if (e.name === 'AbortError') {
-        lastErr = new Error('AI timeout 90s');
-        continue;
-      }
-      // error selain auth → rethrow (jangan buang key yang masih baik)
+      if (e.name === 'AbortError') { lastErr = new Error('AI timeout 90s'); continue; }
       if (!lastErr) throw e;
-      lastErr = e;
-      break;
-    } finally {
-      clearTimeout(timeout);
-    }
+      lastErr = e; break;
+    } finally { clearTimeout(timeout); }
   }
   throw lastErr || new Error('AI tidak tersedia');
 }
 
-// Middleware auth anon-token (sama seperti pesan.js).
-function verifikasiAnon(req, res, next) {
+// Auth opsional: Bearer anon-token (mode tiket) kalau ada.
+function verifikasiAnonOpsional(req, res, next) {
   const h = req.headers.authorization || '';
-  if (!h.startsWith('Bearer ')) return res.status(401).json({ error: 'token diperlukan' });
-  try {
-    const payload = verifikasiJWT(h.slice(7));
-    req.tiketAnon = payload.tiket;
-    next();
-  } catch (e) {
-    return res.status(401).json({ error: 'token tidak valid' });
+  if (h.startsWith('Bearer ')) {
+    try { req.tiketAnon = verifikasiJWT(h.slice(7)).tiket; } catch (e) { /* invalid = anon */ }
   }
+  next();
 }
 
-// POST /api/ai/status — cek fitur aktif (public, tanpa secret).
+// ============ routes ============
+
 router.get('/status', (req, res) => {
   res.json({ aktif: AKTIF });
 });
 
-// POST /api/ai/chat — kirim pesan, dapat balasan AI.
-router.post('/chat', verifikasiAnon, async (req, res) => {
+// POST /api/ai/sesi — buat sesi AI anonim baru (tanpa tiket, tanpa identitas).
+router.post('/sesi', async (req, res) => {
+  if (!AKTIF) return res.status(503).json({ error: 'fitur AI belum aktif' });
+  const sesiId = crypto.randomBytes(32).toString('hex');
+  res.status(201).json({ sesiId });
+});
+
+// GET /api/ai/riwayat?sesi=... — restore riwayat di browser.
+router.get('/riwayat', verifikasiAnonOpsional, async (req, res) => {
+  if (!AKTIF) return res.status(503).json({ error: 'fitur AI belum aktif' });
+  try {
+    if (req.tiketAnon) {
+      return res.json({ riwayat: await aiHistoryTiket(req.tiketAnon) });
+    }
+    const sesi = String(req.query.sesi || '');
+    if (!sesiValid(sesi)) return res.status(400).json({ error: 'sesi tidak valid' });
+    res.json({ riwayat: await aiHistorySesi(sesi) });
+  } catch (e) {
+    console.error('[ai/riwayat]', e.message);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+// POST /api/ai/chat
+// Body: { sesi?: hex64, isi: string(maks 2000), mode?: 'ngobrol'|'laporan' }
+// Tanpa Bearer = wajib sesi. Dengan Bearer anon-token = mode tiket.
+router.post('/chat', verifikasiAnonOpsional, async (req, res) => {
   if (!AKTIF) return res.status(503).json({ error: 'fitur AI belum aktif' });
 
-  const tiket = req.tiketAnon;
   const isi = String((req.body && req.body.isi) || '').trim();
   const mode = String((req.body && req.body.mode) || '') === 'laporan' ? 'laporan' : 'ngobrol';
+  const sesi = String((req.body && req.body.sesi) || '');
+  const tiket = req.tiketAnon || null;
+
   if (!isi) return res.status(400).json({ error: 'isi wajib diisi' });
   if (isi.length > 2000) return res.status(400).json({ error: 'pesan maksimal 2000 karakter' });
-
-  // Harus tiket pengaduan PN- (bukan PM- minat program).
-  if (!/^PN-/.test(tiket)) return res.status(400).json({ error: 'tiket tidak didukung' });
+  if (!tiket && !sesiValid(sesi)) return res.status(400).json({ error: 'sesi tidak valid' });
 
   try {
-    // Riwayat chat AI tersimpan di pesan (pengirim='ai_user' / 'ai') — pisah dari chat konselor.
-    const riwayat = await db.prepare(
-      "SELECT pengirim, isi_enc FROM pesan WHERE no_tiket=$1 AND pengirim IN ('ai_user','ai') ORDER BY dibuat DESC LIMIT 12"
-    ).all(tiket);
-    riwayat.reverse();
+    let messages;
 
-    // Cek kuota harian (30 pertukaran/tiket/hari) via chat_event append.
-    const hariIni = await db.prepare(
-      "SELECT COUNT(*) c FROM chat_event WHERE no_tiket=$1 AND tipe='ai_panggil' AND dibuat > $2"
-    ).get(tiket, Date.now() - 24 * 3600 * 1000);
-    if (Number(hariIni.c || 0) >= 30) {
-      return res.status(429).json({ error: 'jatah obrolan AI hari ini habis (30). Coba besok lagi.' });
+    if (tiket) {
+      // ---- mode tiket (kompatibilitas) ----
+      const kuota = await aiKuotaTiket(tiket);
+      if (kuota.terpakai >= kuota.perHari) {
+        return res.status(429).json({ error: `jatah obrolan AI hari ini habis (${kuota.perHari}). Coba besok lagi.` });
+      }
+      const riwayat = await aiHistoryTiket(tiket);
+      const systemMsg = { role: 'system', content: SYSTEM_PROMPT };
+      messages = [systemMsg, ...riwayat];
+      const p = await db.prepare('SELECT untuk, kategori, status, darurat, cerita_enc FROM pengaduan WHERE no_tiket=$1').get(tiket);
+      if (p) {
+        const cerita = decryptAman(p.cerita_enc, 'tiket ' + tiket);
+        systemMsg.content += `\n\nKONTEKS TIKET (jangan sebut nomor tiket): untuk=${p.untuk}, kategori=${p.kategori}, status=${p.status}${p.darurat ? ', DARURAT' : ''}${cerita ? ', cerita awal pelapor: "' + cerita.slice(0, 800) + '"' : ''}`;
+      }
+      messages.push({ role: 'user', content: mode === 'laporan' ? PROMPT_LAPORAN : isi });
+      const balasan = await tanyaAI(messages);
+      await aiSimpanTiket(tiket, 'ai_user', isi);
+      await aiSimpanTiket(tiket, 'ai', balasan);
+      return res.json({ balasan });
     }
 
-    const ctx = await konteksTiket(tiket);
-    const cerita = ctx ? decryptAman(
-      (await db.prepare('SELECT cerita_enc FROM pengaduan WHERE no_tiket=$1').get(tiket)).cerita_enc,
-      'tiket ' + tiket
-    ) : null;
+    // ---- mode sesi mandiri (utama) ----
+    const kuota = await aiKuotaSesi(sesi);
+    if (kuota.terpakai >= kuota.perHari) {
+      return res.status(429).json({ error: `jatah obrolan AI sesi ini habis (${kuota.perHari}/hari). Coba besok lagi.` });
+    }
 
-    // Bangun messages: system + konteks tiket + riwayat + pesan baru.
-    const messages = [
-      { role: 'system', content: SYSTEM_PROMPT + (ctx ? `\n\nKONTEKS TIKET INI (jangan sebut nomor tiket): untuk=${ctx.untuk}, kategori=${ctx.kategori}, status=${ctx.status}${ctx.darurat ? ', DARURAT' : ''}${cerita ? ', cerita awal pelapor: "' + cerita.slice(0, 800) + '"' : ''}` : '') },
+    const riwayat = await aiHistorySesi(sesi);
+    messages = [
+      { role: 'system', content: SYSTEM_PROMPT + '\n\nCATATAN: Pengguna BELUM membuat laporan formal. Biarkan mereka nyaman dulu; ajakan lembut ke konselor manusia cukup sekali saat percakapan mengalir, bukan tiap balasan.' },
+      ...riwayat,
+      { role: 'user', content: mode === 'laporan' ? PROMPT_LAPORAN : isi },
     ];
-    for (const r of riwayat) {
-      messages.push({ role: r.pengirim === 'ai_user' ? 'user' : 'assistant', content: decryptAman(r.isi_enc, 'pesan AI') });
-    }
-    messages.push({
-      role: 'user',
-      content: mode === 'laporan'
-        ? 'mohon bantu susun CERITA pengaduan yang jujur dan jelas dari apa yang sudah kuceritakan. Format: 1) Kejadian, 2) Kapan dan berapa lama, 3) Dampak ke saya, 4) Apa yang saya mau dari konselor. Ini untuk konselor manusia, bukan polisi.'
-        : isi,
-    });
 
     const balasan = await tanyaAI(messages);
-
-    // Simpan percakapan (enkripsi sama seperti pesan biasa).
-    const { encrypt } = require('../security');
-    const now = Date.now();
-    await db.prepare("INSERT INTO pesan (no_tiket, pengirim, isi_enc, dibuat) VALUES ($1,'ai_user',$2,$3)").run(tiket, encrypt(isi), now);
-    await db.prepare("INSERT INTO pesan (no_tiket, pengirim, isi_enc, dibuat) VALUES ($1,'ai',$2,$3)").run(tiket, encrypt(balasan), now);
-    await db.prepare("INSERT INTO chat_event (no_tiket, tipe, dibuat) VALUES ($1,'ai_panggil',$2)").run(tiket, now);
-
+    await aiSimpanSesi(sesi, 'user', isi);
+    await aiSimpanSesi(sesi, 'ai', balasan);
     res.json({ balasan });
   } catch (e) {
     console.error('[ai/chat]', e.message);

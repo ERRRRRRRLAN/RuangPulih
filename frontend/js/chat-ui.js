@@ -39,7 +39,13 @@
         '</div>' +
       '</div>' +
       '<form class="chat-gate" id="formTiket" novalidate>' +
-        '<p class="gate-teks">Chat ini terhubung ke laporan Anda. Masukkan nomor tiket yang Anda dapatkan saat melaporkan agar konselor bisa membalas.</p>' +
+        '<button type="button" class="btn btn-primary btn-block" id="btnMulaiAi">' +
+          '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><circle cx="12" cy="12" r="9"/><path d="M12 8v.01M12 12v4"/></svg>' +
+          'Ngobrol dulu dengan Sahabat AI' +
+        '</button>' +
+        '<p class="gate-hint" style="text-align:center;margin:8px 0 0">Anonim, tanpa tiket — aman buat yang belum siap cerita ke manusia.</p>' +
+        '<p class="gate-or">atau hubungi konselor manusia</p>' +
+        '<p class="gate-teks">Masukkan nomor tiket yang Anda dapatkan saat melaporkan agar konselor bisa membalas.</p>' +
         '<div class="field">' +
           '<label for="inputTiketChat">Nomor tiket</label>' +
           '<div class="tiket-input-wrap">' +
