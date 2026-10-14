@@ -1259,11 +1259,13 @@
                 stLabel.textContent = 'Sahabat AI sedang berpikir...';
                 window.__aiFaseAktif = 'berpikir';
               } else if (ev.fase === 'menulis') {
-                stLabel.textContent = 'Sahabat AI sedang menulis...';
                 window.__aiFaseAktif = 'menulis';
-                // Hapus dots (sudah mulai menulis)
+                // Mulai menulis → label & dots KELUAR dari bubble (jangan gabung dgn isi)
+                if (stLabel.parentNode) stLabel.remove();
                 if (bs.parentNode) bs.remove();
               } else if (ev.chunk) {
+                if (stLabel.parentNode) stLabel.remove();  // jangan gabung dgn output
+                if (bs.parentNode) bs.remove();
                 teksAi += ev.chunk;
                 // live render markdown
                 pAi.innerHTML = renderAiMarkdown(teksAi);
@@ -1284,6 +1286,9 @@
 
                 if (ev.draftForm && typeof isiFormDariDraft === 'function') {
                   var df = ev.draftForm;
+                  // Buang kartu "Susun draft laporan" jika sempat muncul — draft SUDAH jadi.
+                  document.querySelectorAll('.ai-ajakan').forEach(function (el) { el.remove(); });
+                  laporanDitawarkan = true;  // jangan tawarkan lagi
                   try { sessionStorage.setItem('ai-draft-laporan', JSON.stringify(df)); } catch (e5) {}
                   if (df.sinyalKrisis) cekKrisis('krisis dari draft');
                   kartuAksiAi(
@@ -1295,8 +1300,9 @@
                   );
                   var bb2 = document.getElementById('btnBukaFormTerisi');
                   if (bb2) bb2.addEventListener('click', function () { isiFormDariDraft(df); });
+                } else {
+                  tawarkanLaporan();  // hanya kalau TIDAK ada draftForm
                 }
-                tawarkanLaporan();
               }
             } catch (e4) { if (e4.message) throw e4; }
           }

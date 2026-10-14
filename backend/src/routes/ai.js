@@ -102,6 +102,13 @@ function sanitasiDraft(d) {
   else if (/pengedar|jaringan|bandar/.test(untuk)) untukFix = 'Jaringan pengedar';
   else if (/tetangga|orang lain|warga/.test(untuk)) untukFix = 'Orang lain / tetangga';
   else if (/diri sendiri|sendiri|aku|saya/.test(untuk)) untukFix = 'Diri sendiri';
+  // Koreksi silang dgn transkrip (AI sering salah baca "kakak aku pakai" = diri sendiri)
+  if (pakaiOrang === true && untukFix === 'Diri sendiri') untukFix = (function () {
+    if (/kakak|adik|abang|sepupu|ortu|orang tua|keluarga/.test(tr)) return 'Anggota keluarga';
+    if (/temen|teman|kawan|sobat/.test(tr)) return 'Teman';
+    if (/tetangga|warga/.test(tr)) return 'Orang lain / tetangga';
+    return 'Teman';
+  })();
 
   // kategori: petakan kata kunci ke opsi chip
   const katIn = Array.isArray(d.kategori) ? d.kategori.join(' ').toLowerCase() : '';
@@ -452,7 +459,7 @@ router.post('/chat', verifikasiAnonOpsional, async (req, res) => {
       let draftForm = null;
       const mDraft = balasan.match(/\[DRAFT_FORM\](\{[\s\S]*?\})(?:\n|$)/);
       if (mDraft) {
-        try { draftForm = sanitasiDraft(JSON.parse(mDraft[1])); } catch (e) {}
+        try { draftForm = sanitasiDraft(JSON.parse(mDraft[1]), transkrip || ''); } catch (e) {}
         balasan = balasan.replace(/\[DRAFT_FORM\][\s\S]*$/, '').trim();
       }
       await aiSimpanTiket(tiket, 'ai_user', isi);
@@ -477,7 +484,7 @@ router.post('/chat', verifikasiAnonOpsional, async (req, res) => {
     let draftForm = null;
     const mDraft = balasan.match(/\[DRAFT_FORM\](\{[\s\S]*?\})(?:\n|$)/);
     if (mDraft) {
-      try { draftForm = sanitasiDraft(JSON.parse(mDraft[1])); } catch (e) { /* tag rusak = abaikan */ }
+      try { draftForm = sanitasiDraft(JSON.parse(mDraft[1]), transkrip || ''); } catch (e) { /* tag rusak = abaikan */ }
       balasan = balasan.replace(/\[DRAFT_FORM\][\s\S]*$/, '').trim();
     }
     await aiSimpanSesi(sesi, 'user', isi);
@@ -509,7 +516,10 @@ router.post('/siapkan-laporan', async (req, res) => {
 Tugas: susun DRAFT laporan pengaduan dari sudut pandang pengguna (orang pertama "saya"), jujur, kronologis, tanpa mengarang fakta baru.
 
 SEBELUM memilih, pikirkan dulu secara internal:
- • "Laporan ini untuk siapa?" — Jika cerita memakai kata "dia/temenku/bilal" → TEMPAT LAIN, bukan diri sendiri. Jika memakai "aku/saya" → Diri sendiri.
+ • "Laporan ini untuk siapa?" — Lihat SIAPA yang memakai zat, bukan siapa pelapor.
+    - "temenku/bilal/dia memakai" → Tentu bukan Diri sendiri (pelapor menceritakan orang lain).
+    - "kakak/adik/sepupuku memakai" → Anggota keluarga. "kakak aku pakai ekstasi" → Anggota keluarga, MESKIPUN ada kata "aku" di kalimat (itu menunjuk pemilik, bukan pemakai).
+    - HANYA "aku/saya memakai" → Diri sendiri.
  • "Seberapa sering?" — Petakan kata pengguna: 'hampir tiap hari/tiap hari/setiap hari' → 'Hampir setiap hari'; 'sering/mingguan' → 'Sering (mingguan)'; 'beberapa kali/2-3x' → 'Beberapa kali'; 'sekali/coba-coba' → 'Pernah sekali / coba-coba'; tidak jelas → 'Tidak tahu / orang lain'.
  • "Jenis zat apa?" — Petakan: sabu → 'Metamfetamina (Sabu)'; ganja → 'Ganja'; lem/kamper/inhalan → 'Lem / pelarut menguap'; alkohol/miras → 'Alkohol berlebihan'; ekstasi → 'Ekstasi'; heroin/putaw → 'Heroin / Putaw'; obat resep → 'Obat resep disalahgunakan'. Tidak disebut → ['Belum yakin'].
  • "Usia & kota?" — HANYA jika angka/nama kota secara eksplisit di transkrip. Jangan tebak.
@@ -552,16 +562,16 @@ ${transkrip}`;
     const awal = bersih.indexOf('{');
     const akhir = bersih.lastIndexOf('}');
     if (awal === -1 || akhir === -1) throw new Error('AI tidak mengembalikan JSON');
-    const draft = JSON.parse(bersih.slice(awal, akhir + 1));
+    const draft = sanitasiDraft(JSON.parse(bersih.slice(awal, akhir + 1)), transkrip);
 
     res.json({
-      butuhTiket: !!draft.butuhTiket,
+      butuhTiket: true,  // endpoint ini memang untuk menyiapkan laporan
       butuhTiketAlasan: String(draft.butuhTiketAlasan || '').slice(0, 300),
-      untuk: String(draft.untuk || 'Diri sendiri'),
-      kategori: Array.isArray(draft.kategori) ? draft.kategori.slice(0, 3).map(String) : ['Belum yakin'],
-      frekuensi: String(draft.frekuensi || ''),
-      usia: Number(draft.usia) || null,
-      lokasi: String(draft.lokasi || '').slice(0, 60),
+      untuk: draft.untuk || 'Diri sendiri',
+      kategori: draft.kategori,
+      frekuensi: draft.frekuensi || '',
+      usia: draft.usia,
+      lokasi: draft.lokasi || '',
       cerita: String(draft.cerita || '').slice(0, 5000),
       darurat: !!draft.darurat,
       sinyalKrisis: !!draft.sinyalKrisis,
@@ -634,7 +644,7 @@ router.post('/chat/stream', verifikasiAnonOpsional, async (req, res) => {
     let draftForm = null;
     const mDraft = balasan.match(/\[DRAFT_FORM\](\{[\s\S]*?\})(?:\n|$)/);
     if (mDraft) {
-      try { draftForm = sanitasiDraft(JSON.parse(mDraft[1])); } catch (e) {}
+      try { draftForm = sanitasiDraft(JSON.parse(mDraft[1]), transkrip || ''); } catch (e) {}
       balasan = balasan.replace(/\[DRAFT_FORM\][\s\S]*$/, '').trim();
     }
 
