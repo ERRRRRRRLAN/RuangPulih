@@ -215,8 +215,8 @@ async function tanyaAI(messages) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
         body: JSON.stringify(modelPakai.includes('deepseek')
-          ? { model: modelPakai, messages, max_tokens: 32000, temperature: 0.7, reasoning_effort: 'low' }
-          : { model: modelPakai, messages, max_tokens: 32000, temperature: 0.7, thinking: { type: 'enabled', budget_tokens: 512 } }),
+          ? { model: modelPakai, messages, max_tokens: 32000, temperature: 0.4, reasoning_effort: 'low' }
+          : { model: modelPakai, messages, max_tokens: 32000, temperature: 0.4, thinking: { type: 'enabled', budget_tokens: 512 } }),
         signal: ac.signal,
       });
       if (!res.ok) {
@@ -293,8 +293,8 @@ async function tanyaAIStream(messages, res, kirimEvent) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
         body: JSON.stringify(modelPakai.includes('deepseek')
-          ? { model: modelPakai, messages, max_tokens: 32000, temperature: 0.7, reasoning_effort: 'low', stream: true }
-          : { model: modelPakai, messages, max_tokens: 32000, temperature: 0.7, thinking: { type: 'enabled', budget_tokens: 512 }, stream: true }),
+          ? { model: modelPakai, messages, max_tokens: 32000, temperature: 0.4, reasoning_effort: 'low', stream: true }
+          : { model: modelPakai, messages, max_tokens: 32000, temperature: 0.4, thinking: { type: 'enabled', budget_tokens: 512 }, stream: true }),
         signal: ac.signal,
       });
       if (!res2.ok) {
@@ -525,6 +525,13 @@ Aturan:
 - sinyalKrisis=true bila adaindikasi bunuh diri/melukai diri/overdose — WAJIB disertai butuhTiket=true.
 - Jika tidak yakin jenis narkoba: kategori ["Belum yakin"].
 - cerita WAJIB merangkum dengan kata-kata pengguna sendiri, jangan menghakimi.
+- ATURAN ANTI-HALUSINASI KERAS: HANYA gunakan fakta yang pengguna sebut eksplisit.
+  • Usia, kota, nama, sekolah, jenis zat — jika TIDAK disebut pengguna, isi null / ['Belum yakin'], JANGAN menebak.
+  • Contoh SALAH: pengguna bilang 'dia' tanpa usia → menulis usia 16. Contoh BENAR: usia null.
+  • Jangan menambah detail deskriptif apa pun yang di luar transkrip.
+
+PERHATIAN EDIT: Jika pengguna sebelumnya sudah meminta draft, transkrip akan mengandung draft lama.
+Terapkan PERUBAHAN yang diminta ke draft LAMA — pertahankan fakta lama yang masih benar, ubah hanya yang diminta.
 
 TRANSKRIP:
 ${transkrip}`;

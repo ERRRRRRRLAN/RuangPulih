@@ -1286,6 +1286,9 @@
 
                 if (ev.draftForm && typeof isiFormDariDraft === 'function') {
                   var df = ev.draftForm;
+                  // Buang kartu "Susun draft laporan" jika sempat muncul — draft SUDAH jadi.
+                  document.querySelectorAll('.ai-ajakan').forEach(function (el) { el.remove(); });
+                  laporanDitawarkan = true;  // jangan tawarkan lagi
                   try { sessionStorage.setItem('ai-draft-laporan', JSON.stringify(df)); } catch (e5) {}
                   if (df.sinyalKrisis) cekKrisis('krisis dari draft');
                   kartuAksiAi(
@@ -1297,8 +1300,9 @@
                   );
                   var bb2 = document.getElementById('btnBukaFormTerisi');
                   if (bb2) bb2.addEventListener('click', function () { isiFormDariDraft(df); });
+                } else {
+                  tawarkanLaporan();  // hanya kalau TIDAK ada draftForm
                 }
-                tawarkanLaporan();
               }
             } catch (e4) { if (e4.message) throw e4; }
           }
