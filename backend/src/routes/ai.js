@@ -408,12 +408,12 @@ router.delete('/sesi/:sesiId', async (req, res) => {
 // Body: { sesi?: hex64, isi: string(maks 2000), mode?: 'ngobrol'|'laporan' }
 // Tanpa Bearer = wajib sesi. Dengan Bearer anon-token = mode tiket.
 // Sweeper: hapus sesi AI lebih tua dari 7 hari (privacy: tidak simpan selamanya).
-let sweepTerakhir = 0;
+let sweepTerakhir = 0;  // sesi AI > 24 jam dibuang (privasi)
 async function sweepSesiLama() {
   const now = Date.now();
   if (now - sweepTerakhir < 3600_000) return;  // maks 1x/jam
   sweepTerakhir = now;
-  try { await db.prepare('DELETE FROM ai_chat WHERE dibuat < $1').run(now - 7 * 24 * 3600 * 1000); }
+  try { await db.prepare('DELETE FROM ai_chat WHERE dibuat < $1').run(now - 24 * 3600 * 1000); }
   catch (e) { /* abaikan */ }
 }
 

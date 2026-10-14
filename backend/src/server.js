@@ -56,6 +56,7 @@ app.use((req, res, next) => {
   next();
 });
 const opsiStatic = { extensions: ['html'], maxAge: 0 };
+app.use((req, res, next) => { res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'); next(); });
 app.use(express.static(ROOT, opsiStatic));
 
 // URL bersih (profesional, tanpa ekstensi .html):

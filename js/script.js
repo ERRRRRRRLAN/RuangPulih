@@ -1235,22 +1235,11 @@
           var je = await res.json().catch(function(){return null;});
           throw new Error((je && je.error) || 'AI tidak bisa dihubungi');
         }
-        // Baca SSE
+        // Baca SSE — label status HANYA dari event fase asli model (bukan timer).
         var reader = res.body.getReader();
         var dec = new TextDecoder();
         var buf = '';
         var teksAi = '';
-        var labelTimers = [
-          [6000, 'Sahabat AI memahami isi ceritamu...'],
-          [15000, 'Sahabat AI sedang menulis...'],
-          [30000, 'Melanjutkan menulis...'],
-          [50000, 'Hampir selesai...']
-        ];
-        labelTimers.forEach(function (lt) {
-          setTimeout(function () {
-            if (window.__aiFaseAktif !== 'menulis' && !window.__aiSelesaiThis) stLabel.textContent = lt[1];
-          }, lt[0]);
-        });
 
         while (true) {
           var rd = await reader.read();
