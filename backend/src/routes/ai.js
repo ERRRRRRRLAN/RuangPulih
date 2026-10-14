@@ -323,8 +323,19 @@ router.delete('/sesi/:sesiId', async (req, res) => {
 // POST /api/ai/chat
 // Body: { sesi?: hex64, isi: string(maks 2000), mode?: 'ngobrol'|'laporan' }
 // Tanpa Bearer = wajib sesi. Dengan Bearer anon-token = mode tiket.
+// Sweeper: hapus sesi AI lebih tua dari 7 hari (privacy: tidak simpan selamanya).
+let sweepTerakhir = 0;
+async function sweepSesiLama() {
+  const now = Date.now();
+  if (now - sweepTerakhir < 3600_000) return;  // maks 1x/jam
+  sweepTerakhir = now;
+  try { await db.prepare('DELETE FROM ai_chat WHERE dibuat < $1').run(now - 7 * 24 * 3600 * 1000); }
+  catch (e) { /* abaikan */ }
+}
+
 router.post('/chat', verifikasiAnonOpsional, async (req, res) => {
   if (!AKTIF) return res.status(503).json({ error: 'fitur AI belum aktif' });
+  sweepSesiLama();
 
   const isi = String((req.body && req.body.isi) || '').trim();
   const mode = String((req.body && req.body.mode) || '') === 'laporan' ? 'laporan' : 'ngobrol';
