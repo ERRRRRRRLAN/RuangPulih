@@ -211,7 +211,7 @@ async function tanyaAI(messages) {
       const res = await fetch(AI_BASE.replace(/\/$/, '') + '/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-        body: JSON.stringify({ model: modelPakai, messages, max_tokens: Math.max(config.AI_MAX_TOKENS, 4000), temperature: 0.7, thinking: { type: 'disabled' } }),
+        body: JSON.stringify({ model: modelPakai, messages, max_tokens: 32000, temperature: 0.7, thinking: { type: 'disabled' } }),
         signal: ac.signal,
       });
       if (!res.ok) {
@@ -246,7 +246,7 @@ async function tanyaAIJson(messages) {
       const res = await fetch(AI_BASE.replace(/\/$/, '') + '/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-        body: JSON.stringify({ model: modelPakai, messages, max_tokens: Math.max(config.AI_MAX_TOKENS * 4, 4000), temperature: 0.3, thinking: { type: 'disabled' } }),
+        body: JSON.stringify({ model: modelPakai, messages, max_tokens: 32000, temperature: 0.3, thinking: { type: 'disabled' } }),
         signal: ac.signal,
       });
       if (!res.ok) {
