@@ -1234,7 +1234,7 @@
         // Gerbang niat (client-side): draftForm dari backend HANYA dipercaya kalau
         // pesan user memang eksplisit minta laporan. Model sesekali salah trigger —
         // gerbang ini menahan salah trigger dari sampai ke user.
-        var NIAK_LAPOR = /\b(buatkan|buat\s+laporan|buat\s+form|isi\s+form|modifikasi\s+form|ubah\s+form|siapkan\s+(laporan|form|draft)|susun\s+(laporan|draft)|lapor(hkan)?\s+sekarang|mulai\s+lapor)/i;
+        var NIAK_LAPOR = /\b(buatkan|buat\s+(laporan|form|draft)|isi|edit|modifikasi|ubah|perbarui|update|siapkan|susun|tulis)[^\n]{0,30}(laporan|form|draft|pengaduan)|\b(laporan|form|draft|pengaduan)[^\n]{0,30}(dibuatkan|diisi|dimodifikasi|diubah|diperbarui)|\blapor(hkan)?\s+sekarang\b|\bmulai\s+lapor\b|\bbikin(kan)?\s+(laporan|form)/i;
         var mintaLaporan = NIAK_LAPOR.test(teks);
         if (j.draftForm && !mintaLaporan) {
           console.log('[ai] draftForm diabaikan — user tidak minta laporan');
