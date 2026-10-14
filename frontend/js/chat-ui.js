@@ -39,31 +39,31 @@
         '</div>' +
       '</div>' +
       '<form class="chat-gate" id="formTiket" novalidate>' +
-        '<div class="gate-ai">' +
-          '<button type="button" class="btn btn-primary btn-block" id="btnMulaiAi">' +
-            '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><circle cx="12" cy="12" r="9"/><path d="M12 8v.01M12 12v4"/></svg>' +
-            'Ngobrol dulu dengan Sahabat AI' +
-          '</button>' +
-          '<p class="gate-hint" style="text-align:center;margin:8px 0 0">Anonim, tanpa tiket — aman buat yang belum siap cerita ke manusia.</p>' +
-        '</div>' +
-        '<div class="gate-divider"><span>atau hubungi konselor</span></div>' +
-        '<p class="gate-teks">Sudah punya laporan? Masukkan nomor tiket agar konselor bisa membalas.</p>' +
-        '<div class="field">' +
-          '<label for="inputTiketChat">Nomor tiket</label>' +
+        '<button type="button" class="gate-pilih gate-pilih-utama" id="btnMulaiAi">' +
+          '<span class="gate-ikon">' +
+            '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 7V4M9 4h6"/><circle cx="9" cy="13" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="13" r="1" fill="currentColor" stroke="none"/></svg>' +
+          '</span>' +
+          '<span class="gate-teks-wrap"><strong>Ngobrol dengan Sahabat AI</strong><small>Anonim · tanpa tiket · kapan saja</small></span>' +
+          '<svg class="gate-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>' +
+        '</button>' +
+        '<div class="gate-divider"><span>atau</span></div>' +
+        '<button type="button" class="gate-pilih" id="btnPilihTiket">' +
+          '<span class="gate-ikon">' +
+            '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c1.2-3.6 4-5.2 7-5.2s5.8 1.6 7 5.2"/></svg>' +
+          '</span>' +
+          '<span class="gate-teks-wrap"><strong>Konselor manusia</strong><small>Punya nomor tiket laporan</small></span>' +
+          '<svg class="gate-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>' +
+        '</button>' +
+        '<div class="gate-tiket-wrap" id="gateTiketWrap" hidden>' +
           '<div class="tiket-input-wrap">' +
             '<input type="text" id="inputTiketChat" placeholder="PN-YYYYMMDD-XXXX" autocomplete="off" spellcheck="false" />' +
             '<button type="button" class="btn-icon tiket-salin" id="btnSalinTiketGate" aria-label="Salin nomor tiket" title="Salin nomor tiket" hidden>' +
               '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>' +
             '</button>' +
           '</div>' +
-          '<p class="gate-hint" id="gateHintTiket">Tersimpan otomatis di perangkat ini — pakai ikon salin bila perlu lagi.</p>' +
+          '<button type="submit" class="btn btn-primary btn-block">Mulai Chat</button>' +
+          '<p class="gate-hint">Belum punya tiket? <a href="/#pengaduan" id="gateKePengaduan">Buat laporan anonim dulu</a> · <a href="#" id="gateTelegram">atau via Telegram</a></p>' +
         '</div>' +
-        '<button type="submit" class="btn btn-block" style="box-shadow:var(--out-sm)">Mulai Chat</button>' +
-        '<a href="#" id="gateTelegram" class="btn btn-telegram btn-block" target="_blank" rel="noopener">' +
-          '<svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>' +
-          'Chat via Telegram' +
-        '</a>' +
-        '<p class="gate-bawah">Belum punya tiket? <a href="/#pengaduan" id="gateKePengaduan">Buat laporan anonim dulu</a></p>' +
       '</form>' +
       '<div class="chat-isi" id="chatIsi" hidden>' +
         '<div class="chat-mode-tabs" id="chatModeTabs" hidden>' +

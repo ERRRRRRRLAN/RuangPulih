@@ -1213,12 +1213,11 @@
   })();
 
   // ===== SAHABAT AI: mulai tanpa tiket =====
-  // "Ngobrol dulu dengan Sahabat AI" — buat/ambil sesi anonim, langsung buka ruang chat.
+  // "Ngobrol dengan Sahabat AI" — buat/ambil sesi anonim, langsung buka ruang chat.
   var btnMulaiAi = $('#btnMulaiAi');
   if (btnMulaiAi) {
     btnMulaiAi.addEventListener('click', async function () {
       btnMulaiAi.disabled = true;
-      btnMulaiAi.textContent = 'Menyiapkan...';
       try {
         // 1. Sesi anonim (localStorage persist, per browser).
         var sesi = null;
@@ -1236,40 +1235,45 @@
         window.__tiketChat = null;   // bukan chat konselor
         chatSelesaiFlag = false;
         judulChat.textContent = 'Sahabat AI — Ruang Pulih';
-        sesiLabel.textContent = 'Anonim · tanpa tiket · 40 pesan/hari';
+        sesiLabel.textContent = 'Anonim · tanpa tiket';
         var bss = $('#btnSalinTiketSesi'); if (bss) bss.hidden = true;
         formTiket.hidden = true;
         chatIsi.hidden = false;
         chatBody.innerHTML = '';
 
-        // 3. Tampilkan tab mode (AI aktif); tandai AI terpilih.
-        var tabs = $('#chatModeTabs');
-        if (tabs) {
-          tabs.hidden = false;
-          $$('#chatModeTabs .mode-tab').forEach(function (b) {
-            var isAi = b.getAttribute('data-mode') === 'ai';
-            b.classList.toggle('aktif', isAi);
-          });
-        }
-
-        // 4. Input aktif + intro AI.
+        // 3. Input aktif + intro AI.
         inputChat.disabled = false;
         btnSend.disabled = false;
         inputChat.placeholder = 'Cerita apa saja ke Sahabat AI...';
-        quickPanel.style.display = 'none';  // quick replies hanya utk konselor
-        bubble('Halo! Aku Sahabat AI — teman ceritamu di Ruang Pulih. Bebas cerita apa aja, tanpa nama, tanpa tiket. Semua yang kamu tulis hanya tersimpan di perangkatmu (sesi anonim). Kalau suatu saat mau bicara dengan konselor manusia, aku bantu siapkan semuanya. Mau mulai dari mana?', 'in');
+        quickPanel.style.display = 'none';
+        bubble('Halo! Aku Sahabat AI — teman ceritamu di Ruang Pulih. Bebas cerita apa aja, tanpa nama, tanpa tiket. Kalau suatu saat mau bicara dengan konselor manusia, aku bantu siapkan. Mau mulai dari mana?', 'in');
         setTimeout(function () { inputChat.focus(); }, 100);
       } catch (e) {
         toast('Gagal menyiapkan Sahabat AI: ' + e.message);
       } finally {
         btnMulaiAi.disabled = false;
-        btnMulaiAi.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><circle cx="12" cy="12" r="9"/><path d="M12 8v.01M12 12v4"/></svg>Ngobrol dulu dengan Sahabat AI';
       }
     });
   }
 
-  // Update handler tab mode: kalau pindah ke AI dari konselor TANPA tiket, buka sesi.
-  // (Logika tab lama di bawah tetap berlaku utk pelapor ber-tiket.)
+  // ===== PILIH KONSELOR: munculkan input tiket =====
+  var btnPilihTiket = $('#btnPilihTiket');
+  var gateTiketWrap = $('#gateTiketWrap');
+  if (btnPilihTiket && gateTiketWrap) {
+    btnPilihTiket.addEventListener('click', function () {
+      var buka = gateTiketWrap.hidden;
+      gateTiketWrap.hidden = !buka;
+      if (buka) {
+        // Isi otomatis dari tiket tersimpan kalau ada.
+        if (!inputTiketChat.value.trim()) {
+          try { inputTiketChat.value = sessionStorage.getItem('tiket-aktif') || localStorage.getItem('tiket-terakhir') || ''; } catch (e) {}
+        }
+        var btnSalin = $('#btnSalinTiketGate');
+        if (btnSalin) btnSalin.hidden = !inputTiketChat.value.trim();
+        setTimeout(function () { inputTiketChat.focus(); }, 80);
+      }
+    });
+  }
 
   formChat.addEventListener('submit', function (e) {
     e.preventDefault();
