@@ -92,26 +92,36 @@ const UNTUK_VALID = ['Diri sendiri', 'Teman', 'Anggota keluarga', 'Orang lain / 
 const KATEGORI_VALID = ['Ganja', 'Metamfetamina (Sabu)', 'Ekstasi', 'Heroin / Putaw', 'Obat resep disalahgunakan', 'Alkohol berlebihan', 'Lem / pelarut menguap', 'Belum yakin'];
 const FREKUENSI_VALID = ['Pernah sekali / coba-coba', 'Beberapa kali', 'Sering (mingguan)', 'Hampir setiap hari', 'Tidak tahu / orang lain'];
 
-function sanitasiDraft(d) {
+function sanitasiDraft(d, transkrip) {
   d = d || {};
-  // untuk: cocokkan keyword -> nilai valid
+  const tr = String(transkrip || '').toLowerCase();
+
+  // ===== Deteksi subjek pemakai (orang lain vs pelapor sendiri) =====
+  const adaOrangLain = /\b(temen|teman|kawan|kakak|adik|abang|sepupu|ortu|orang\s+tua|tetangga|jaringan|pengedar|bilal)\b/.test(tr);
+  const adaAkuPakai = /(^|\s)(aku|saya)(\s+(sendiri|sendirian|juga))?(\s+yang)?\s+(pakai|memakai|hisap|nyium|ngonsumsi|mencoba|coba|kecanduan)\b/.test(tr);
+  const adaOrangPakai = /\b(temen|teman|kawan|kakak|adik|abang|sepupu|dia)\b[^.]{0,40}\b(pakai|memakai|hisap|nyium|ngonsumsi|mencoba|coba|nawarin|ngajak)\b/.test(tr) ||
+                        /\b(nawarin|ngajak|nyium|hisap)[^.] {0,30}\b(ke\s+aku|ke\s+saya)/.test(tr);
+  // pelapor = pemakai hanya jika "aku/saya + kata pakai" ADA dan TIDAK ada orang lain yang juga bermasalah
+  const pakaiSendiri = adaAkuPakai && !(adaOrangLain && adaOrangPakai);
+  const pakaiOrangLain = adaOrangLain && !pakaiSendiri;
+
+  // ===== untuk siapa =====
   let untuk = String(d.untuk || '').toLowerCase();
   let untukFix = 'Diri sendiri';
-  if (/teman|kawan|sobat|friend/.test(untuk)) untukFix = 'Teman';
-  else if (/keluarga|ortu|orang tua|abang|kakak|adik|sepupu/.test(untuk)) untukFix = 'Anggota keluarga';
+  if (/teman|temen|kawan|sobat|friend/.test(untuk)) untukFix = 'Teman';
+  else if (/keluarga|ortu|orang\s+tua|abang|kakak|adik|sepupu/.test(untuk)) untukFix = 'Anggota keluarga';
   else if (/pengedar|jaringan|bandar/.test(untuk)) untukFix = 'Jaringan pengedar';
-  else if (/tetangga|orang lain|warga/.test(untuk)) untukFix = 'Orang lain / tetangga';
-  else if (/diri sendiri|sendiri|aku|saya/.test(untuk)) untukFix = 'Diri sendiri';
-  // Koreksi silang dgn transkrip (AI sering salah baca "kakak aku pakai" = diri sendiri)
-  if (pakaiOrang === true && untukFix === 'Diri sendiri') untukFix = (function () {
-    if (/kakak|adik|abang|sepupu|ortu|orang tua|keluarga/.test(tr)) return 'Anggota keluarga';
-    if (/temen|teman|kawan|sobat/.test(tr)) return 'Teman';
-    if (/tetangga|warga/.test(tr)) return 'Orang lain / tetangga';
-    return 'Teman';
-  })();
+  else if (/tetangga|orang\s+lain|warga/.test(untuk)) untukFix = 'Orang lain / tetangga';
+  else if (/diri\s+sendiri|sendiri|aku|saya/.test(untuk)) untukFix = 'Diri sendiri';
+  // Koreksi dari transkrip: "kakak aku pakai" = Anggota keluarga (bukan Diri sendiri)
+  if (pakaiOrangLain) {
+    if (/\b(kakak|adik|abang|sepupu|ortu|orang\s+tua)\b/.test(tr)) untukFix = 'Anggota keluarga';
+    else if (/\b(temen|teman|kawan|sobat)\b/.test(tr)) untukFix = 'Teman';
+    else if (/\b(tetangga|warga|pengedar|jaringan)\b/.test(tr)) untukFix = untukFix === 'Jaringan pengedar' ? 'Jaringan pengedar' : (untukFix === 'Jaringan pengedar' ? 'Jaringan pengedar' : 'Orang lain / tetangga');
+  }
 
-  // kategori: petakan kata kunci ke opsi chip
-  const katIn = Array.isArray(d.kategori) ? d.kategori.join(' ').toLowerCase() : '';
+  // ===== kategori =====
+  const katIn = String(d.kategori && Array.isArray(d.kategori) ? d.kategori.join(' ') : d.kategori || '').toLowerCase() + ' ' + tr;
   const kategori = [];
   const peta = [
     ['ganja', 'Ganja'], ['sabu', 'Metamfetamina (Sabu)'], ['metamfetamin', 'Metamfetamina (Sabu)'],
@@ -120,40 +130,46 @@ function sanitasiDraft(d) {
     ['lem', 'Lem / pelarut menguap'], ['kamper', 'Lem / pelarut menguap'], ['inhalan', 'Lem / pelarut menguap'],
   ];
   for (const [kata, nilai] of peta) {
-    if (katIn.includes(kata) && !kategori.includes(nilai)) kategori.push(nilai);
+    if (katIn.includes(kata) && kategori.indexOf(nilai) === -1) kategori.push(nilai);
   }
-  if (!kategori.length) kategori.push('Belum yakin');
-  // buang nilai invalid seperti 'Konseling Individu' — itu program, bukan narkoba
   for (let i = kategori.length - 1; i >= 0; i--) {
-    if (!KATEGORI_VALID.includes(kategori[i])) kategori.splice(i, 1);
+    if (KATEGORI_VALID.indexOf(kategori[i]) === -1) kategori.splice(i, 1);
   }
   if (!kategori.length) kategori.push('Belum yakin');
 
-  // frekuensi
+  // ===== frekuensi =====
   let freq = String(d.frekuensi || '');
-  const freqFix = FREKUENSI_VALID.find(f => f.toLowerCase() === freq.toLowerCase()) ||
-                  FREKUENSI_VALID.find(f => freq.toLowerCase().includes(f.split(' ')[0].toLowerCase())) || '';
+  const freqFix = FREKUENSI_VALID.find(function (f) { return f.toLowerCase() === freq.toLowerCase(); }) ||
+                  FREKUENSI_VALID.find(function (f) { return freq.toLowerCase().indexOf(f.split(' ')[0].toLowerCase()) !== -1; }) ||
+                  (/(tiap\s*hari|hampir\s*tiap|setiap\s*hari)/.test(tr) ? 'Hampir setiap hari' :
+                   /(beberapa\s*kali)/.test(tr) ? 'Beberapa kali' :
+                   /(sekali|coba)/.test(tr) ? 'Pernah sekali / coba-coba' : '');
 
-  // cerita: buang tag DRAFT_FORM yang tersangkut
+  // ===== usia (dari transkrip: "16 tahun", "umur 16") =====
+  let usia = Number(d.usia) || null;
+  if (!usia) {
+    const m = tr.match(/\b(1[0-9]|20)\s*(tahun|thn|yo)?\b/);
+    if (m) usia = Number(m[1]);
+  }
+  if (usia && (usia < 1 || usia > 120)) usia = null;
+
+  // ===== lokasi (kota: kata setelah "di ")heuristik sederhana =====
+  let lokasi = String(d.lokasi || '') || null;
+  if (!lokasi) {
+    const mL = tr.match(/\b(?:di|kota)\s+([a-z][a-z\s]{2,30})/);
+    if (mL) lokasi = mL[1].trim().replace(/\b(ya|kok|dong|sih)\b/g, '').trim();
+  }
+
+  // ===== cerita =====
   const cerita = String(d.cerita || '').replace(/\[DRAFT_FORM\][\s\S]*/g, '').trim().slice(0, 5000);
-
-    // usia: ambil angka pertama 1-120
-    let usia = Number(d.usia) || null;
-    if (!usia) {
-      const m = String(d.untuk || '').match(/(1[0-9]|20|[1-9])\s*(tahun|thn|yo)?/);
-      if (m) usia = Number(m[1]);
-    }
-    if (usia && (usia < 1 || usia > 120)) usia = null;
-    // lokasi: buang tag & batasi panjang
-    const lokasi = String(d.lokasi || '').replace(/\[DRAFT_FORM\][\s\S]*/g, '').trim().slice(0, 60) || null;
 
   return {
     untuk: untukFix,
     kategori: kategori.slice(0, 3),
     frekuensi: freqFix,
-    usia,
-    lokasi,
-    cerita,
+    usia: usia,
+    lokasi: lokasi,
+    cerita: cerita,
     darurat: !!d.darurat,
     sinyalKrisis: !!d.sinyalKrisis,
   };
