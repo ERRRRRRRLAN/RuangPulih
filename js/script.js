@@ -1237,8 +1237,6 @@
           );
           var bb = document.getElementById('btnBukaFormTerisi');
           if (bb) bb.addEventListener('click', function () { isiFormDariDraft(df); });
-          // opsi: auto-buka langsung tanpa klik (user sudah eksplisit minta)
-          setTimeout(function () { isiFormDariDraft(df); }, 1200);
         }
       } catch (e) {
         hapusMengetik();
