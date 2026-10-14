@@ -1208,14 +1208,22 @@
         if (tiket) {
           headers['Authorization'] = 'Bearer ' + await window.RuangPulihRT.mintaAnonToken(tiket);
         }
-        // Animasi typing bertahap selama AI memproses.
-        tampilkanMengetik('Membaca ceritamu...');
-        var faseTimer = setTimeout(function () { tampilkanMengetik('Menyusun jawaban...'); }, 8000);
-        var faseTimer2 = setTimeout(function () { tampilkanMengetik('Hampir selesai...'); }, 25000);
-        var faseTimer3 = setTimeout(function () { tampilkanMengetik('Mohon tunggu sebentar, pertanyaanmu cukup kompleks...'); }, 45000);
+        // Animasi typing dinamis — label berubah sesuai durasi riil proses model.
+        tampilkanMengetik('Sahabat AI membaca ceritamu...');
+        var fase = [
+          [6000,  'Sahabat AI memahami isi ceritamu...'],
+          [12000, 'Sahabat AI sedang menulis balasan...'],
+          [20000, 'Melanjutkan menulis...'],
+          [30000, 'Hampir selesai, mohon tunggu...'],
+          [45000, 'Model sedang sibuk — hampir ada hasilnya...'],
+          [65000, 'Masih memproses — ini jarang terjadi, mohon sabar...']
+        ];
+        var faseTimers = fase.map(function (f) {
+          return setTimeout(function () { tampilkanMengetik(f[1]); }, f[0]);
+        });
         var r = await fetch('/api/ai/chat', { method: 'POST', headers: headers, body: JSON.stringify(payload) });
         var j = await r.json();
-        clearTimeout(faseTimer); clearTimeout(faseTimer2); clearTimeout(faseTimer3);
+        faseTimers.forEach(clearTimeout);
         hapusMengetik();
         if (!r.ok) throw new Error(j.error || 'gagal');
         if (!sesiId && j.sesiId) {
