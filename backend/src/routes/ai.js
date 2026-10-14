@@ -84,6 +84,59 @@ function sesiValid(s) {
   return typeof s === 'string' && /^[a-f0-9]{64}$/.test(s);
 }
 
+// Normalisasi draft form agar cocok dengan opsi form pengaduan.
+const UNTUK_VALID = ['Diri sendiri', 'Teman', 'Anggota keluarga', 'Orang lain / tetangga', 'Jaringan pengedar'];
+const KATEGORI_VALID = ['Ganja', 'Metamfetamina (Sabu)', 'Ekstasi', 'Heroin / Putaw', 'Obat resep disalahgunakan', 'Alkohol berlebihan', 'Lem / pelarut menguap', 'Belum yakin'];
+const FREKUENSI_VALID = ['Pernah sekali / coba-coba', 'Beberapa kali', 'Sering (mingguan)', 'Hampir setiap hari', 'Tidak tahu / orang lain'];
+
+function sanitasiDraft(d) {
+  d = d || {};
+  // untuk: cocokkan keyword -> nilai valid
+  let untuk = String(d.untuk || '').toLowerCase();
+  let untukFix = 'Diri sendiri';
+  if (/teman|kawan|sobat|friend/.test(untuk)) untukFix = 'Teman';
+  else if (/keluarga|ortu|orang tua|abang|kakak|adik|sepupu/.test(untuk)) untukFix = 'Anggota keluarga';
+  else if (/pengedar|jaringan|bandar/.test(untuk)) untukFix = 'Jaringan pengedar';
+  else if (/tetangga|orang lain|warga/.test(untuk)) untukFix = 'Orang lain / tetangga';
+  else if (/diri sendiri|sendiri|aku|saya/.test(untuk)) untukFix = 'Diri sendiri';
+
+  // kategori: petakan kata kunci ke opsi chip
+  const katIn = Array.isArray(d.kategori) ? d.kategori.join(' ').toLowerCase() : '';
+  const kategori = [];
+  const peta = [
+    ['ganja', 'Ganja'], ['sabu', 'Metamfetamina (Sabu)'], ['metamfetamin', 'Metamfetamina (Sabu)'],
+    ['ekstasi', 'Ekstasi'], ['heroin', 'Heroin / Putaw'], ['putaw', 'Heroin / Putaw'],
+    ['obat resep', 'Obat resep disalahgunakan'], ['alkohol', 'Alkohol berlebihan'], ['miras', 'Alkohol berlebihan'],
+    ['lem', 'Lem / pelarut menguap'], ['kamper', 'Lem / pelarut menguap'], ['inhalan', 'Lem / pelarut menguap'],
+  ];
+  for (const [kata, nilai] of peta) {
+    if (katIn.includes(kata) && !kategori.includes(nilai)) kategori.push(nilai);
+  }
+  if (!kategori.length) kategori.push('Belum yakin');
+  // buang nilai invalid seperti 'Konseling Individu' — itu program, bukan narkoba
+  for (let i = kategori.length - 1; i >= 0; i--) {
+    if (!KATEGORI_VALID.includes(kategori[i])) kategori.splice(i, 1);
+  }
+  if (!kategori.length) kategori.push('Belum yakin');
+
+  // frekuensi
+  let freq = String(d.frekuensi || '');
+  const freqFix = FREKUENSI_VALID.find(f => f.toLowerCase() === freq.toLowerCase()) ||
+                  FREKUENSI_VALID.find(f => freq.toLowerCase().includes(f.split(' ')[0].toLowerCase())) || '';
+
+  // cerita: buang tag DRAFT_FORM yang tersangkut
+  const cerita = String(d.cerita || '').replace(/\[DRAFT_FORM\][\s\S]*/g, '').trim().slice(0, 5000);
+
+  return {
+    untuk: untukFix,
+    kategori: kategori.slice(0, 3),
+    frekuensi: freqFix,
+    cerita,
+    darurat: !!d.darurat,
+    sinyalKrisis: !!d.sinyalKrisis,
+  };
+}
+
 async function aiHistorySesi(sesiId, limit = 12) {
   const rows = await db.prepare(
     'SELECT pengirim, isi_enc FROM ai_chat WHERE sesi_id=$1 ORDER BY dibuat DESC LIMIT ' + Number(limit)
@@ -292,7 +345,7 @@ router.post('/chat', verifikasiAnonOpsional, async (req, res) => {
       let draftForm = null;
       const mDraft = balasan.match(/\[DRAFT_FORM\](\{[\s\S]*?\})(?:\n|$)/);
       if (mDraft) {
-        try { draftForm = JSON.parse(mDraft[1]); } catch (e) {}
+        try { draftForm = sanitasiDraft(JSON.parse(mDraft[1])); } catch (e) {}
         balasan = balasan.replace(/\[DRAFT_FORM\][\s\S]*$/, '').trim();
       }
       await aiSimpanTiket(tiket, 'ai_user', isi);
@@ -317,7 +370,7 @@ router.post('/chat', verifikasiAnonOpsional, async (req, res) => {
     let draftForm = null;
     const mDraft = balasan.match(/\[DRAFT_FORM\](\{[\s\S]*?\})(?:\n|$)/);
     if (mDraft) {
-      try { draftForm = JSON.parse(mDraft[1]); } catch (e) { /* tag rusak = abaikan */ }
+      try { draftForm = sanitasiDraft(JSON.parse(mDraft[1])); } catch (e) { /* tag rusak = abaikan */ }
       balasan = balasan.replace(/\[DRAFT_FORM\][\s\S]*$/, '').trim();
     }
     await aiSimpanSesi(sesi, 'user', isi);
