@@ -677,8 +677,9 @@ router.post('/chat/stream', verifikasiAnonOpsional, async (req, res) => {
         const promptDraft = `Susun draft pengaduan dari percakapan berikut. Balas HANYA JSON:
 {"untuk":"Diri sendiri|Teman|Anggota keluarga|Orang lain / tetangga|Jaringan pengedar","kategori":["Ganja|Metamfetamina (Sabu)|Ekstasi|Heroin / Putaw|Obat resep disalahgunakan|Alkohol berlebihan|Lem / pelarut menguap|Belum yakin"],"frekuensi":"Pernah sekali / coba-coba|Beberapa kali|Sering (mingguan)|Hampir setiap hari|Tidak tahu / orang lain","usia":angka|null,"lokasi":"kota|null","cerita":"orang pertama dari fakta saja","darurat":false}
 ANTI-HALUSINASI: hanya fakta dari percakapan. Tidak disebut → null/'Belum yakin'.
+ATURAN PEMBAHARUAN: PESAN TERAKHIR PELAPOR berisi KOREKSI/perubahan (mis. umur baru, kota baru). Nilai di pesan TERAKHIR MENGganti nilai lama. Mis: kalau di akhir dia bilang 'usianya 23', pakai 23 WALAUPUN sebelumnya pernah disebut 16.
 
-PERCAKAPAN:
+PERCAKAPAN (dari awal ke akhir — pesan TERAKHIR adalah koreksi terbaru):
 ${messages.filter(function (m) { return m.role !== 'system'; }).map(function (m) { return (m.role === 'user' ? 'PELAPOR: ' : 'AI: ') + m.content; }).join('\n').slice(0, 5000)}`;
         const rawD = await tanyaAIJson([{ role: 'user', content: promptDraft }]);
         const bersih = rawD.replace(/```json|```/g, '').trim();
