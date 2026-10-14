@@ -1172,6 +1172,17 @@
       } catch (e) {
         hapusMengetik();
         bubble('Sahabat AI: ' + e.message, 'in');
+        // Tombol coba lagi — kirim ulang pesan yang sama tanpa user ngetik ulang.
+        var d = document.createElement('div');
+        d.className = 'ai-aksi';
+        d.innerHTML = '<button type="button" class="btn btn-primary btn-retry-ai">' +
+          '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M1 4v6h6"/><path d="M3.5 15a9 9 0 102.1-9.4L1 10"/></svg>Coba lagi</button>';
+        chatBody.appendChild(d);
+        chatBody.scrollTop = chatBody.scrollHeight;
+        d.querySelector('.btn-retry-ai').addEventListener('click', function () {
+          d.remove();
+          kirimPesan(teks);  // kirim ulang pesan yang tadi gagal
+        });
       }
       btnSend.disabled = false;
       inputChat.focus();

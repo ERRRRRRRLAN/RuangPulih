@@ -830,6 +830,7 @@ body.chat-terbuka .navbar { z-index: 50; }
 }
 .ai-ajakan .btn { align-self: flex-start; }
 .ai-ajakan .chip { align-self: flex-start; padding: 6px 12px; font-size: .78rem; background: var(--surface); }
+.btn-retry-ai { align-self: flex-start; padding: 9px 16px; font-size: .84rem; }
 .ai-krisis {
   display: flex; flex-direction: column; gap: 8px; padding: 16px 18px;
   border-radius: 14px; background: var(--surface); box-shadow: 0 0 0 2px var(--accent), var(--out);
