@@ -1222,8 +1222,15 @@
         }
         bubble(j.balasan || '(AI tidak membalas)', 'in');
         tawarkanLaporan();
-        // AI minta form auto-isi (permintaan eksplisit user di chat)?
-        if (j.draftForm && typeof isiFormDariDraft === 'function') {
+        // Gerbang niat (client-side): draftForm dari backend HANYA dipercaya kalau
+        // pesan user memang eksplisit minta laporan. Model sesekali salah trigger —
+        // gerbang ini menahan salah trigger dari sampai ke user.
+        var NIAK_LAPOR = /\b(buatkan|buat\s+laporan|buat\s+form|isi\s+form|modifikasi\s+form|ubah\s+form|siapkan\s+(laporan|form|draft)|susun\s+(laporan|draft)|lapor(hkan)?\s+sekarang|mulai\s+lapor)/i;
+        var mintaLaporan = NIAK_LAPOR.test(teks);
+        if (j.draftForm && !mintaLaporan) {
+          console.log('[ai] draftForm diabaikan — user tidak minta laporan');
+        }
+        if (j.draftForm && mintaLaporan && typeof isiFormDariDraft === 'function') {
           var df = j.draftForm;
           try { sessionStorage.setItem('ai-draft-laporan', JSON.stringify(df)); } catch (e) {}
           if (df.sinyalKrisis) cekKrisis('krisis dari draft');
