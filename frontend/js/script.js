@@ -1199,7 +1199,7 @@
       cekKrisis(teks);  // deteksi krisis sejak awal dari pesan user
       // Sesi AI (sessionStorage — hilang saat browser ditutup).
       var sesiId = null;
-      try { sesiId = sessionStorage.getItem('ai-sesi'); } catch (e) {}
+      try { sesiId = sessionStorage.getItem('ai-sesi-v2'); } catch (e) {}
       try {
         var payload = { isi: teks, mode: 'ngobrol' };
         if (sesiId) payload.sesi = sesiId;
@@ -1218,7 +1218,7 @@
         hapusMengetik();
         if (!r.ok) throw new Error(j.error || 'gagal');
         if (!sesiId && j.sesiId) {
-          try { sessionStorage.setItem('ai-sesi', j.sesiId); } catch (e) {}
+          try { sessionStorage.setItem('ai-sesi-v2', j.sesiId); } catch (e) {}
         }
         bubble(j.balasan || '(AI tidak membalas)', 'in');
         tawarkanLaporan();
@@ -1308,16 +1308,17 @@
   if (btnMulaiAi) {
     btnMulaiAi.addEventListener('click', async function () {
       btnMulaiAi.disabled = true;
+      try { localStorage.removeItem('ai-sesi'); } catch (e) {}  // bersihkan legacy sesi v1
       try {
         // 1. Sesi anonim (sessionStorage — hilang saat browser ditutup).
         var sesi = null;
-        try { sesi = sessionStorage.getItem('ai-sesi'); } catch (e) {}
+        try { sesi = sessionStorage.getItem('ai-sesi-v2'); } catch (e) {}
         if (!sesi) {
           var r = await fetch('/api/ai/sesi', { method: 'POST' });
           var j = await r.json();
           if (!r.ok) throw new Error(j.error || 'gagal membuat sesi');
           sesi = j.sesiId;
-          try { sessionStorage.setItem('ai-sesi', sesi); } catch (e) {}
+          try { sessionStorage.setItem('ai-sesi-v2', sesi); } catch (e) {}
         }
 
         // 2. Buka ruang chat dalam mode AI.
@@ -1353,10 +1354,10 @@
   if (btnAiBaru) {
     btnAiBaru.addEventListener('click', async function () {
       var lama = null;
-      try { lama = sessionStorage.getItem('ai-sesi'); } catch (e) {}
+      try { lama = sessionStorage.getItem('ai-sesi-v2'); } catch (e) {}
       if (lama) {
         try { await fetch('/api/ai/sesi/' + lama, { method: 'DELETE' }); } catch (e) {}
-        try { sessionStorage.removeItem('ai-sesi'); } catch (e) {}
+        try { sessionStorage.removeItem('ai-sesi-v2'); } catch (e) {}
       }
       // Trigger ulang tombol mulai AI (buat sesi baru + intro).
       btnMulaiAi.click();
@@ -1431,7 +1432,7 @@
 
   async function susunDraftLaporan() {
     var sesi = null;
-    try { sesi = sessionStorage.getItem('ai-sesi'); } catch (e) {}
+    try { sesi = sessionStorage.getItem('ai-sesi-v2'); } catch (e) {}
     if (!sesi) { toast('Sesi AI tidak ditemukan.'); return; }
     tampilkanMengetik();
     try {
