@@ -1155,20 +1155,20 @@
         if (sesiId) payload.sesi = sesiId;
         var headers = { 'Content-Type': 'application/json' };
         if (tiket) {
-          // tiket mode: pakai anon token yang sudah diminta RuangPulihRT
-          payload = { isi: teks, mode: 'ngobrol' };
-          var t = sessionStorage.getItem('ai-cek') || '';
           headers['Authorization'] = 'Bearer ' + await window.RuangPulihRT.mintaAnonToken(tiket);
         }
+        // Animasi typing selama AI memproses.
+        tampilkanMengetik();
         var r = await fetch('/api/ai/chat', { method: 'POST', headers: headers, body: JSON.stringify(payload) });
         var j = await r.json();
+        hapusMengetik();
         if (!r.ok) throw new Error(j.error || 'gagal');
         if (!sesiId && j.sesiId) {
-          // server kirim sesi baru — simpan
           try { localStorage.setItem('ai-sesi', j.sesiId); } catch (e) {}
         }
         bubble(j.balasan || '(AI tidak membalas)', 'in');
       } catch (e) {
+        hapusMengetik();
         bubble('Sahabat AI: ' + e.message, 'in');
       }
       btnSend.disabled = false;
