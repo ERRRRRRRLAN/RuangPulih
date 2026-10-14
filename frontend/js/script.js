@@ -1367,17 +1367,24 @@
     // tutup modal chat
     if (typeof window.__tutupChatModal === 'function') window.__tutupChatModal();
 
-    // radio "untuk"
+    // radio "untuk" + sync visual radio-card
     var radioUntuk = formPengaduan.querySelector('input[name="untuk"][value="' + (d.untuk || '').replace(/"/g, '\\"') + '"]');
-    if (radioUntuk) { radioUntuk.checked = true; radioUntuk.dispatchEvent(new Event('change', { bubbles: true })); }
+    if (radioUntuk) {
+      radioUntuk.checked = true;
+      radioUntuk.closest('.radio-card').classList.add('on');
+      // uncheck & un-highlight lainnya
+      formPengaduan.querySelectorAll('input[name="untuk"]').forEach(function (r2) {
+        if (r2 !== radioUntuk) r2.closest('.radio-card').classList.remove('on');
+      });
+    }
 
-    // chip narkoba (kategori)
+    // chip narkoba (kategori) — chip pakai class "on", bukan "aktif"
     var kategori = Array.isArray(d.kategori) ? d.kategori : [];
     chipStore.value = [];
     $$('#chipNarkoba .chip').forEach(function (c) {
       var val = c.getAttribute('data-val');
       var on = kategori.indexOf(val) !== -1;
-      c.classList.toggle('aktif', on);
+      c.classList.toggle('on', on);
       if (on && chipStore.value.indexOf(val) === -1) chipStore.value.push(val);
     });
 
@@ -1399,9 +1406,13 @@
       cerita.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
-    // darurat (radio Ya/Tidak)
+    // darurat (radio Ya/Tidak) + sync visual
     var radioDarurat = formPengaduan.querySelector('input[name="darurat"][value="' + (d.darurat ? 'Ya' : 'Tidak') + '"]');
-    if (radioDarurat) { radioDarurat.checked = true; radioDarurat.dispatchEvent(new Event('change', { bubbles: true })); }
+    if (radioDarurat) {
+      radioDarurat.checked = true;
+      var grup = formPengaduan.querySelectorAll('input[name="darurat"]');
+      grup.forEach(function (r2) { r2.closest('.radio-card').classList.toggle('on', r2 === radioDarurat); });
+    }
     // kontak otomatis: kosong (opsional)
 
     // scroll ke form + highlight
