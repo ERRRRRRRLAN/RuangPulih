@@ -39,13 +39,15 @@
         '</div>' +
       '</div>' +
       '<form class="chat-gate" id="formTiket" novalidate>' +
-        '<button type="button" class="btn btn-primary btn-block" id="btnMulaiAi">' +
-          '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><circle cx="12" cy="12" r="9"/><path d="M12 8v.01M12 12v4"/></svg>' +
-          'Ngobrol dulu dengan Sahabat AI' +
-        '</button>' +
-        '<p class="gate-hint" style="text-align:center;margin:8px 0 0">Anonim, tanpa tiket — aman buat yang belum siap cerita ke manusia.</p>' +
-        '<p class="gate-or">atau hubungi konselor manusia</p>' +
-        '<p class="gate-teks">Masukkan nomor tiket yang Anda dapatkan saat melaporkan agar konselor bisa membalas.</p>' +
+        '<div class="gate-ai">' +
+          '<button type="button" class="btn btn-primary btn-block" id="btnMulaiAi">' +
+            '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><circle cx="12" cy="12" r="9"/><path d="M12 8v.01M12 12v4"/></svg>' +
+            'Ngobrol dulu dengan Sahabat AI' +
+          '</button>' +
+          '<p class="gate-hint" style="text-align:center;margin:8px 0 0">Anonim, tanpa tiket — aman buat yang belum siap cerita ke manusia.</p>' +
+        '</div>' +
+        '<div class="gate-divider"><span>atau hubungi konselor</span></div>' +
+        '<p class="gate-teks">Sudah punya laporan? Masukkan nomor tiket agar konselor bisa membalas.</p>' +
         '<div class="field">' +
           '<label for="inputTiketChat">Nomor tiket</label>' +
           '<div class="tiket-input-wrap">' +
@@ -54,10 +56,9 @@
               '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>' +
             '</button>' +
           '</div>' +
-          '<p class="gate-hint" id="gateHintTiket">Nomor tiket Anda tersimpan di perangkat ini — klik ikon salin bila perlu memakainya lagi.</p>' +
+          '<p class="gate-hint" id="gateHintTiket">Tersimpan otomatis di perangkat ini — pakai ikon salin bila perlu lagi.</p>' +
         '</div>' +
-        '<button type="submit" class="btn btn-primary btn-block">Mulai Chat</button>' +
-        '<p class="gate-or">atau</p>' +
+        '<button type="submit" class="btn btn-block" style="box-shadow:var(--out-sm)">Mulai Chat</button>' +
         '<a href="#" id="gateTelegram" class="btn btn-telegram btn-block" target="_blank" rel="noopener">' +
           '<svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>' +
           'Chat via Telegram' +
