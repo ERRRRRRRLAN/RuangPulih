@@ -951,11 +951,20 @@ body.chat-disembunyikan .chat-unhide { display: inline-flex; }
 
   .chat-modal { inset: 0; }
   body:not(.chat-disembunyikan) .chat-modal .chat-modal-kotak {
-    width: 100vw; height: 100vh; margin: 0; border-radius: 0;
+    width: 100vw; height: 100dvh; margin: 0; border-radius: 0;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+  @supports (height: 100dvh) {
+    body:not(.chat-disembunyikan) .chat-modal .chat-modal-kotak { height: 100dvh; }
+  }
   .chat-gate { padding: 18px 16px 16px; gap: 12px; }
+  .chat-header { padding: 12px 14px; gap: 10px; }
+  .chat-identitas .avatar { width: 36px; height: 36px; border-radius: 12px; }
+  .chat-identitas strong { font-size: .9rem; }
+  .chat-identitas > div > span { font-size: .68rem; }
+  .chat-header .btn-icon { width: 34px; height: 34px; }
+  .chat-header-aksi { gap: 4px; }
   .chat-body { padding: 16px 14px; gap: 10px; }
   .chat-quick { padding: 0 14px 12px; }
   .chat-input { padding: 10px 12px; gap: 9px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
@@ -963,6 +972,20 @@ body.chat-disembunyikan .chat-unhide { display: inline-flex; }
   .btn-send { width: 44px; height: 44px; border-radius: 13px; }
   .msg { max-width: 88%; font-size: .92rem; }
   .chat-selesai { max-width: 100%; padding: 16px 18px; }
+
+  /* --- Sahabat AI mobile: kartu pilihan, aksi, tabs, krisis --- */
+  .gate-pilih { padding: 14px; gap: 11px; border-radius: 12px; }
+  .gate-ikon { width: 38px; height: 38px; border-radius: 10px; }
+  .gate-teks-wrap strong { font-size: .9rem; }
+  .gate-teks-wrap small { font-size: .72rem; }
+  .gate-divider { margin: 0; }
+  .chat-mode-tabs { padding: 12px 14px 0; gap: 5px; }
+  .chat-mode-tabs .mode-tab { padding: 8px 10px; font-size: .78rem; }
+  .ai-aksi { max-width: 100%; }
+  .ai-ajakan { padding: 12px 14px; font-size: .82rem; }
+  .ai-ajakan .btn { align-self: stretch; text-align: center; }
+  .ai-krisis { padding: 14px; font-size: .84rem; }
+  .ai-krisis .btn { align-self: stretch; text-align: center; }
 
   /* FAB sebagai tombol tutup melayang di pojok kanan bawah modal. */
   .fab-chat.terbuka {
@@ -983,6 +1006,11 @@ body.chat-disembunyikan .chat-unhide { display: inline-flex; }
   .chat-body { padding: 14px 10px; }
   .chat-input { padding: 8px 10px; }
   .msg { max-width: 92%; }
+  .gate-pilih { padding: 12px; gap: 10px; }
+  .gate-ikon { width: 34px; height: 34px; }
+  .gate-teks-wrap strong { font-size: .86rem; }
+  .chat-mode-tabs { padding: 10px 10px 0; }
+  .chat-body { gap: 8px; }
 }
 
 /* ---------- HOTLINE (pita darurat tunggal) ---------- */
