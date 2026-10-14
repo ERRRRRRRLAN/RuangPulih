@@ -329,11 +329,72 @@ async function tanyaAIStream(messages, res, kirimEvent) {
       }
 
       // Parse SSE dari provider, teruskan fase ke client.
+      // PENTING: provider kini mengirim reasoning sebagai tag think INLINE
+      // di delta.content (bukan field 'reasoning' terpisah) — tanpa filter ini
+      // "pikiran model" bocor ke bubble chat. Prefix-hold: ekor chunk yang
+      // berpotensi awal tag di-hold sampai chunk berikut memastikan.
       const reader = res2.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
       let balasan = '';
       let faseSekarang = '';
+      let diThink = false;
+      let ekor = '';
+      const TAG_OPEN = '<' + 'think>';
+      const TAG_CLOSE = '<' + '/think>';
+      const maxTag = Math.max(TAG_OPEN.length, TAG_CLOSE.length) - 1;
+      const emitContent = (teks) => {
+        if (!teks) return;
+        if (faseSekarang !== 'menulis') {
+          faseSekarang = 'menulis';
+          kirimEvent({ fase: 'menulis' });
+        }
+        balasan += teks;
+        kirimEvent({ chunk: teks });
+      };
+      const proses = (teks) => {
+        teks = ekor + teks;
+        ekor = '';
+        let keluar = '';
+        let i = 0;
+        while (i < teks.length) {
+          if (!diThink) {
+            const m = teks.indexOf(TAG_OPEN, i);
+            if (m !== -1) {
+              keluar += teks.slice(i, m);
+              diThink = true;
+              i = m + TAG_OPEN.length;
+              continue;
+            }
+            let hold = 0;
+            for (let k = Math.min(maxTag, teks.length - i); k >= 1; k--) {
+              if (TAG_OPEN.startsWith(teks.slice(teks.length - k))) { hold = k; break; }
+            }
+            if (hold > 0) {
+              keluar += teks.slice(i, teks.length - hold);
+              ekor = teks.slice(teks.length - hold);
+            } else {
+              keluar += teks.slice(i);
+            }
+            i = teks.length;
+          } else {
+            const m2 = teks.indexOf(TAG_CLOSE, i);
+            if (m2 !== -1) {
+              diThink = false;
+              i = m2 + TAG_CLOSE.length;
+            } else {
+              let hold = 0;
+              for (let k = Math.min(maxTag, teks.length - i); k >= 1; k--) {
+                if (TAG_CLOSE.startsWith(teks.slice(teks.length - k))) { hold = k; break; }
+              }
+              ekor = hold > 0 ? teks.slice(teks.length - hold) : '';
+              i = teks.length;
+            }
+          }
+        }
+        if (keluar) emitContent(keluar);
+      };
+let kirimBerpikir = false;
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -350,21 +411,15 @@ async function tanyaAIStream(messages, res, kirimEvent) {
             // DeepSeek: 'reasoning' + 'content'; GLM: 'reasoning_content' + 'content'
             const reasoning = delta.reasoning || delta.reasoning_content;
             const content = delta.content;
-            if (reasoning && faseSekarang !== 'berpikir') {
-              faseSekarang = 'berpikir';
-              kirimEvent({ fase: 'berpikir' });
+            if (reasoning) {
+              if (!kirimBerpikir) { kirimBerpikir = true; faseSekarang = 'berpikir'; kirimEvent({ fase: 'berpikir' }); }
             }
-            if (content) {
-              if (faseSekarang !== 'menulis') {
-                faseSekarang = 'menulis';
-                kirimEvent({ fase: 'menulis' });
-              }
-              balasan += content;
-              kirimEvent({ chunk: content });
-            }
+            if (content) proses(content);
           } catch (e) { /* skip chunk rusak */ }
         }
       }
+      // siram ekor tersisa diakhir stream
+      if (ekor) { if (!diThink) emitContent(ekor); ekor = ''; }
       if (!balasan.trim()) { lastErr = new Error('AI respons kosong'); continue; }
       return balasan.trim();
     } catch (e) {
