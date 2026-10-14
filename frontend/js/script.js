@@ -1201,7 +1201,7 @@
       var sesiId = window.__aiSesi || null;
       var headers = { 'Content-Type': 'application/json' };
       // Deteksi niat laporan: kata kerja pembuatan/edit + objek laporan (dalam 40 char)
-      var NIAK_LAPOR = /(bu[a-z]*k[a-z]*n?|edit|ubah|ganti|perbaru[i]?|isi|susun|siapkan|lanjut)[^\n]{0,40}(laporan|lapor|form|formulir|draft|draf|pengaduan)/i;
+      var NIAK_LAPOR = /(bu[a-z]*k[a-z]*n?|edit|ubah|ganti|modifikasi|revisi|perbaru[i]?|perbaharu[i]?|update|isi|susun|siapkan|lanjut|lengkapi)[^\n]{0,40}(laporan|lapor|form|formulir|draft|draf|pengaduan)/i;
       var modeReq = NIAK_LAPOR.test(teks) ? 'laporan' : 'ngobrol';
       var payload = { isi: teks, mode: modeReq };
       if (sesiId) payload.sesi = sesiId;
