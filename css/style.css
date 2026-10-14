@@ -706,13 +706,18 @@ body.chat-terbuka .navbar { z-index: 50; }
 .chat-header .btn-icon:hover { color: var(--text); box-shadow: var(--out-sm); transform: none; }
 .chat-header-aksi { display: flex; gap: 6px; align-items: center; }
 
-.chat-gate { flex: 1; padding: 20px 18px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; justify-content: center; }
-.gate-teks { font-size: .9rem; color: var(--text-soft); line-height: 1.65; margin: 0; }
-.gate-bawah { font-size: .78rem; color: var(--text-mute); text-align: center; margin: 2px 0 0; line-height: 1.5; }
+.chat-gate { flex: 1; padding: 26px 24px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; justify-content: center; }
+.chat-gate #btnMulaiAi { padding: 14px 16px; font-size: .95rem; }
+.chat-gate #btnMulaiAi:hover { transform: translateY(-1px); }
+.gate-divider { display: flex; align-items: center; gap: 12px; margin: 6px 0; }
+.gate-divider::before, .gate-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); opacity: .6; }
+.gate-divider span { font-size: .72rem; color: var(--text-mute); letter-spacing: .05em; text-transform: uppercase; }
+.gate-teks { font-size: .86rem; color: var(--text-soft); line-height: 1.6; margin: 0; }
+.gate-bawah { font-size: .78rem; color: var(--text-mute); text-align: center; margin: 4px 0 0; line-height: 1.5; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 8px; }
 .gate-bawah a { color: var(--accent); font-weight: 700; }
 .gate-bawah a:hover { text-decoration: underline; }
 .gate-or { text-align: center; font-size: .75rem; color: var(--text-mute); margin: -4px 0 2px; letter-spacing: .04em; }
-.gate-hint { font-size: .72rem; color: var(--text-mute); margin: 6px 0 0; line-height: 1.5; }
+.gate-hint { font-size: .74rem; color: var(--text-mute); margin: 6px 0 0; line-height: 1.55; }
 .tiket-input-wrap { position: relative; display: flex; align-items: center; }
 .tiket-input-wrap input { padding-right: 42px; width: 100%; }
 .tiket-salin {
