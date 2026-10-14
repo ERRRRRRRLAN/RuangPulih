@@ -834,12 +834,54 @@
     return new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
   }
 
+  // Render markdown sederhana utk balasan AI (aman: esc dulu, baru format):
+  // **bold** -> <b>, *italic* -> <i>, "## Judul" -> <b>, "- item" -> bullet baris,
+  // baris kosong -> paragraf. TIDAK izinkan tag HTML apa pun dari AI.
+  function renderAiMarkdown(teks) {
+    var esc = teks.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    var baris = esc.split('\n');
+    var luar = [];
+    var dalamList = false;
+    for (var i = 0; i < baris.length; i++) {
+      var b = baris[i];
+      b = b.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      b = b.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+      b = b.replace(/`([^`]+)`/g, '<code>$1</code>');
+      var mH = b.match(/^(#{1,4})\s+(.*)$/);
+      var mL = b.match(/^\s*[-*•]\s+(.*)$/);
+      var mN = b.match(/^\s*(\d+)[.)]\s+(.*)$/);
+      if (mH) {
+        if (dalamList) { luar.push('</ul>'); dalamList = false; }
+        luar.push('<p class="ai-h"><strong>' + mH[2] + '</strong></p>');
+      } else if (mL) {
+        if (!dalamList) { luar.push('<ul class="ai-ul">'); dalamList = true; }
+        luar.push('<li>' + mL[1] + '</li>');
+      } else if (mN) {
+        if (!dalamList) { luar.push('<ul class="ai-ul">'); dalamList = true; }
+        luar.push('<li>' + mN[1] + '. ' + mN[2] + '</li>');
+      } else if (b.trim() === '') {
+        if (dalamList) { luar.push('</ul>'); dalamList = false; }
+        luar.push('<p class="ai-sp">&nbsp;</p>');
+      } else {
+        if (dalamList) { luar.push('</ul>'); dalamList = false; }
+        luar.push('<p>' + b + '</p>');
+      }
+    }
+    if (dalamList) luar.push('</ul>');
+    return luar.join('');
+  }
+
   function bubble(teks, arah) {
     var div = document.createElement('div');
     div.className = 'msg ' + arah;
-    div.setAttribute('data-dari', arah === 'out' ? 'Anda' : 'Konselor');
+    div.setAttribute('data-dari', arah === 'out' ? 'Anda' : (window.__chatMode === 'ai' ? 'Sahabat AI' : 'Konselor'));
     var p = document.createElement('p');
-    p.textContent = teks;
+    // Balasan AI: render markdown sederhana. Pesan user & sistem: plain text.
+    if (arah === 'in' && window.__chatMode === 'ai' && /[*#`\n]/.test(teks)) {
+      p.innerHTML = renderAiMarkdown(teks);
+    } else {
+      p.textContent = teks;
+    }
     var t = document.createElement('span');
     t.className = 'mtime';
     t.textContent = jam();
