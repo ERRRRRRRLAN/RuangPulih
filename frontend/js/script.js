@@ -1147,6 +1147,7 @@
 
     // ===== MODE AI (Sahabat AI) =====
     if (window.__chatMode === 'ai') {
+      cekKrisis(teks);  // deteksi krisis sejak awal dari pesan user
       // Sesuai mode: pakai sesi_id (tanpa tiket), fallback tiket.
       var sesiId = null;
       try { sesiId = localStorage.getItem('ai-sesi'); } catch (e) {}
@@ -1167,6 +1168,7 @@
           try { localStorage.setItem('ai-sesi', j.sesiId); } catch (e) {}
         }
         bubble(j.balasan || '(AI tidak membalas)', 'in');
+        tawarkanLaporan();  // setelah 2 balasan AI: tawarkan draft laporan sekali
       } catch (e) {
         hapusMengetik();
         bubble('Sahabat AI: ' + e.message, 'in');
@@ -1273,6 +1275,145 @@
         setTimeout(function () { inputTiketChat.focus(); }, 80);
       }
     });
+  }
+
+  // ===== SAHABAT AI: aksi pintar dalam chat =====
+  // Kartu aksi (tombol) yang dirender di dalam chatBody — mis. "Susun draft laporan".
+  function kartuAksiAi(html) {
+    var d = document.createElement('div');
+    d.className = 'ai-aksi';
+    d.innerHTML = html;
+    chatBody.appendChild(d);
+    chatBody.scrollTop = chatBody.scrollHeight;
+    return d;
+  }
+
+  // Deteksi krisis sederhana di pesan user — tampilkan kartu hotline segera.
+  var POLA_KRISIS = /bunuh diri|membunuh diri|mau mati|ingin mati|akhir hidup|mengakhiri|hancurkan diri|melukai diri|overdosis|overdose|tidak lama lagi|selamanya/i;
+  function cekKrisis(teks) {
+    if (!POLA_KRISIS.test(teks)) return false;
+    var d = kartuAksiAi(
+      '<div class="ai-krisis"><strong>Kamu tidak sendirian.</strong>' +
+      '<span>Yang kamu rasakan terdengar berat sekali. Kalau ada pikiran untuk mengakhiri hidup atau melukai diri, tolong hubungi bantuan darurat SEKARANG:</span>' +
+      '<a class="btn btn-primary" href="tel:119"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6A19.8 19.8 0 012.1 4.2 2 2 0 014.1 2h3a2 2 0 012 2.2c0 .9.1 1.8.3 2.6a2 2 0 01-.5 1.9l-1.3 1.2a16 16 0 006 6l1.2-1.3a2 2 0 011.9-.4c.8.2 1.7.3 2.6.3a2 2 0 012 2z"/></svg>Telepon 119 ext 8 — sekarang</a>' +
+      '<small>Layanan gratis, 24 jam, rahasia.</small></div>'
+    );
+    return true;
+  }
+
+  // Tombol "Susun draft laporan saya" — muncul setelah percakapan berjalan.
+  var aiMsgCount = 0;
+  var laporanDitawarkan = false;
+  function tawarkanLaporan() {
+    if (window.__chatMode !== 'ai' || laporanDitawarkan) return;
+    aiMsgCount++;
+    // Tawarkan setelah 2 balasan AI, dan hanya sekali.
+    if (aiMsgCount < 2) return;
+    laporanDitawarkan = true;
+    kartuAksiAi(
+      '<div class="ai-ajakan">' +
+      '<span>Mau aku bantu siapkan draft laporan dari percakapan kita? Nanti form-nya terisi otomatis — kamu tinggal review.</span>' +
+      '<button type="button" class="btn btn-primary" id="btnSusunDraft">' +
+      '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>Susun draft laporan saya</button>' +
+      '<button type="button" class="chip" id="btnNantiSaja">Nanti saja</button>' +
+      '</div>'
+    );
+    var b = document.getElementById('btnSusunDraft');
+    var n = document.getElementById('btnNantiSaja');
+    if (n) n.addEventListener('click', function () { if (n.closest('.ai-ajakan')) n.closest('.ai-ajakan').remove(); });
+    if (b) b.addEventListener('click', susunDraftLaporan);
+  }
+
+  async function susunDraftLaporan() {
+    var sesi = null;
+    try { sesi = localStorage.getItem('ai-sesi'); } catch (e) {}
+    if (!sesi) { toast('Sesi AI tidak ditemukan.'); return; }
+    tampilkanMengetik();
+    try {
+      var r = await fetch('/api/ai/siapkan-laporan', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sesi: sesi })
+      });
+      var j = await r.json();
+      hapusMengetik();
+      if (!r.ok) throw new Error(j.error || 'gagal menyiapkan draft');
+
+      // Simpan draft → tawarkan buka form pengaduan yang terisi otomatis.
+      try { sessionStorage.setItem('ai-draft-laporan', JSON.stringify(j)); } catch (e) {}
+
+      bubble('Draft laporannya sudah kusiapkan. Aku arahkan ke form pengaduan — semua kolom sudah terisi sesuai ceritamu. Baca lagi, ubah kalau perlu, lalu kirim ya.', 'in');
+
+      kartuAksiAi(
+        '<div class="ai-ajakan">' +
+        '<span><strong>Draft siap:</strong> untuk ' + (j.untuk || 'Diri sendiri') +
+        (j.kategori && j.kategori.length ? ' · ' + j.kategori.join(', ') : '') +
+        (j.sinyalKrisis ? ' · <strong style="color:var(--accent)">ada sinyal krisis — segera hubungi 119 ext 8</strong>' : '') + '</span>' +
+        '<button type="button" class="btn btn-primary" id="btnBukaFormTerisi">Buka & review form laporan</button>' +
+        '</div>'
+      );
+      var bb = document.getElementById('btnBukaFormTerisi');
+      if (bb) bb.addEventListener('click', function () { isiFormDariDraft(j); });
+
+      // sinyal krisis: tampilkan kartu hotline juga
+      if (j.sinyalKrisis) cekKrisis('krisis dari draft');
+    } catch (e) {
+      hapusMengetik();
+      bubble('Maaf, gagal menyiapkan draft: ' + e.message, 'in');
+    }
+  }
+
+  // Isi form pengaduan dari draft AI lalu scroll ke form.
+  function isiFormDariDraft(d) {
+    // tutup modal chat
+    if (typeof window.__tutupChatModal === 'function') window.__tutupChatModal();
+
+    // radio "untuk"
+    var radioUntuk = formPengaduan.querySelector('input[name="untuk"][value="' + (d.untuk || '').replace(/"/g, '\\"') + '"]');
+    if (radioUntuk) { radioUntuk.checked = true; radioUntuk.dispatchEvent(new Event('change', { bubbles: true })); }
+
+    // chip narkoba (kategori)
+    var kategori = Array.isArray(d.kategori) ? d.kategori : [];
+    chipStore.value = [];
+    $$('#chipNarkoba .chip').forEach(function (c) {
+      var val = c.getAttribute('data-val');
+      var on = kategori.indexOf(val) !== -1;
+      c.classList.toggle('aktif', on);
+      if (on && chipStore.value.indexOf(val) === -1) chipStore.value.push(val);
+    });
+
+    // frekuensi (neo-select)
+    if (d.frekuensi && nsData['frekuensi']) {
+      nsData['frekuensi'].value = d.frekuensi;
+      var ns = document.querySelector('.neo-select[data-key="frekuensi"]');
+      if (ns) {
+        var valEl = ns.querySelector('.neo-select-value');
+        var opt = ns.querySelector('.neo-select-option[data-value="' + d.frekuensi.replace(/"/g, '\\"') + '"]');
+        if (valEl && opt) valEl.textContent = opt.textContent.trim();
+        $$('.neo-select-option', ns).forEach(function (o) { o.classList.toggle('sel', o.getAttribute('data-value') === d.frekuensi); });
+      }
+    }
+
+    // cerita
+    if (cerita && d.cerita) {
+      cerita.value = d.cerita;
+      cerita.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    // darurat (radio Ya/Tidak)
+    var radioDarurat = formPengaduan.querySelector('input[name="darurat"][value="' + (d.darurat ? 'Ya' : 'Tidak') + '"]');
+    if (radioDarurat) { radioDarurat.checked = true; radioDarurat.dispatchEvent(new Event('change', { bubbles: true })); }
+    // kontak otomatis: kosong (opsional)
+
+    // scroll ke form + highlight
+    var sec = document.getElementById('pengaduan');
+    if (sec) sec.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    setTimeout(function () {
+      var card = formPengaduan.closest('.card') || formPengaduan;
+      card.style.transition = 'box-shadow .4s var(--ease)';
+      card.style.boxShadow = '0 0 0 3px var(--accent)';
+      setTimeout(function () { card.style.boxShadow = ''; }, 1600);
+    }, 400);
+    toast('Draft dari Sahabat AI dimuat — review dan lengkapi, lalu kirim.');
   }
 
   formChat.addEventListener('submit', function (e) {

@@ -157,6 +157,40 @@ async function tanyaAI(messages) {
   throw lastErr || new Error('AI tidak tersedia');
 }
 
+// Varian khusus tugas "keluarkan JSON panjang": token dikali besar (reasoning
+// model memakan token untuk berpikir sebelum JSON lengkap tercetak).
+async function tanyaAIJson(messages) {
+  const semuanya = GONKA_KEYS.length > 0 ? GONKA_KEYS : [config.AI_API_KEY];
+  let lastErr = null;
+  for (let attempt = 0; attempt < Math.min(semuanya.length, 5); attempt++) {
+    const key = nextKey();
+    const ac = new AbortController();
+    const timeout = setTimeout(() => ac.abort(), 120_000);
+    try {
+      const res = await fetch(AI_BASE.replace(/\/$/, '') + '/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+        body: JSON.stringify({ model: AI_MODEL, messages, max_tokens: Math.max(config.AI_MAX_TOKENS * 4, 4000), temperature: 0.3 }),
+        signal: ac.signal,
+      });
+      if (!res.ok) {
+        const teks = await res.text().catch(() => '');
+        if ([401, 402, 403].includes(res.status)) { lastErr = new Error('key ditolak ' + res.status); continue; }
+        throw new Error('AI gateway ' + res.status + ': ' + teks.slice(0, 200));
+      }
+      const j = await res.json();
+      const isi = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+      if (!isi || !String(isi).trim()) { lastErr = new Error('AI respons kosong'); continue; }
+      return String(isi).trim();
+    } catch (e) {
+      if (e.name === 'AbortError') { lastErr = new Error('AI timeout 120s'); continue; }
+      if (!lastErr) throw e;
+      lastErr = e; break;
+    } finally { clearTimeout(timeout); }
+  }
+  throw lastErr || new Error('AI tidak tersedia');
+}
+
 // Auth opsional: Bearer anon-token (mode tiket) kalau ada.
 function verifikasiAnonOpsional(req, res, next) {
   const h = req.headers.authorization || '';
@@ -254,6 +288,72 @@ router.post('/chat', verifikasiAnonOpsional, async (req, res) => {
   } catch (e) {
     console.error('[ai/chat]', e.message);
     res.status(502).json({ error: 'AI sedang tidak bisa dihubungi. Coba lagi sebentar.' });
+  }
+});
+
+// POST /api/ai/siapkan-laporan
+// Body: { sesi } — AI merangkum seluruh percakapan sesi menjadi draft laporan
+// yang mengisi form pengaduan: { untuk, kategori[], cerita, frekuensi, butuhTiket }
+// TIDAK mengirim apa pun ke pengaduan — hanya draft untuk di-review user.
+router.post('/siapkan-laporan', async (req, res) => {
+  if (!AKTIF) return res.status(503).json({ error: 'fitur AI belum aktif' });
+  const sesi = String((req.body && req.body.sesi) || '');
+  if (!sesiValid(sesi)) return res.status(400).json({ error: 'sesi tidak valid' });
+
+  try {
+    const riwayat = await aiHistorySesi(sesi, 40);
+    if (riwayat.filter(m => m.role === 'user').length < 1) {
+      return res.status(400).json({ error: 'belum ada percakapan untuk dirangkum' });
+    }
+
+    const transkrip = riwayat.map(m => (m.role === 'user' ? 'PENGguna: ' : 'SAHABAT AI: ') + m.content).join('\n').slice(0, 6000);
+    const promptRingkas = `Kamu menerima transkrip percakapan antara pengguna anonim dan Sahabat AI di layanan konseling narkotika Ruang Pulih.
+Tugas: susun DRAFT laporan pengaduan dari sudut pandang pengguna (orang pertama "saya"), jujur, kronologis, tanpa mengarang fakta baru.
+
+Balas HANYA JSON valid (tanpa markdown, tanpa penjelasan):
+{"butuhTiket": true|false,
+ "butuhTiketAlasan": "1 kalimat alasan kenapa perlu/tidak perlu laporan",
+ "untuk": "Diri sendiri"|"Teman"|"Anggota keluarga"|"Orang lain / tetangga"|"Jaringan pengedar",
+ "kategori": ["maksimal 3 dari: Ganja","Metamfetamina (Sabu)","Ekstasi","Heroin / Putaw","Obat resep disalahgunakan","Alkohol berlebihan","Lem / pelarut menguap","Belum yakin"],
+ "frekuensi": ""|"Pernah sekali / coba-coba"|"Beberapa kali"|"Sering (mingguan)"|"Hampir setiap hari"|"Tidak tahu / orang lain",
+ "cerita": "3-6 kalimat orang pertama, kronologis, fakta dari percakapan saja",
+ "darurat": true|false,
+ "sinyalKrisis": true|false}
+
+Aturan:
+- butuhTiket=false bila percakapan masih umum/edukasi tanpa kejadian nyata yang melibatkan narkoba.
+- sinyalKrisis=true bila adaindikasi bunuh diri/melukai diri/overdose — WAJIB disertai butuhTiket=true.
+- Jika tidak yakin jenis narkoba: kategori ["Belum yakin"].
+- cerita WAJIB merangkum dengan kata-kata pengguna sendiri, jangan menghakimi.
+
+TRANSKRIP:
+${transkrip}`;
+
+    const draftMentah = await tanyaAIJson([
+      { role: 'user', content: promptRingkas },
+    ]);
+    // Pre-seed berarti responsnya lanjutan — rekonstruksi JSON lengkap
+    const draftMentahFix = draftMentah.startsWith('{') ? draftMentah : '{' + draftMentah;
+    // Parse JSON dari balasan (buang markdown fence kalau ada)
+    const bersih = draftMentahFix.replace(/```json|```/g, '').trim();
+    const awal = bersih.indexOf('{');
+    const akhir = bersih.lastIndexOf('}');
+    if (awal === -1 || akhir === -1) throw new Error('AI tidak mengembalikan JSON');
+    const draft = JSON.parse(bersih.slice(awal, akhir + 1));
+
+    res.json({
+      butuhTiket: !!draft.butuhTiket,
+      butuhTiketAlasan: String(draft.butuhTiketAlasan || '').slice(0, 300),
+      untuk: String(draft.untuk || 'Diri sendiri'),
+      kategori: Array.isArray(draft.kategori) ? draft.kategori.slice(0, 3).map(String) : ['Belum yakin'],
+      frekuensi: String(draft.frekuensi || ''),
+      cerita: String(draft.cerita || '').slice(0, 5000),
+      darurat: !!draft.darurat,
+      sinyalKrisis: !!draft.sinyalKrisis,
+    });
+  } catch (e) {
+    console.error('[ai/siapkan-laporan]', e.message);
+    res.status(502).json({ error: 'Gagal menyiapkan draft laporan. Coba lagi sebentar.' });
   }
 });
 

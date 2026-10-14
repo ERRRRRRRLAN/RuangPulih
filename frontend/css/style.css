@@ -821,6 +821,24 @@ body.chat-terbuka .navbar { z-index: 50; }
 .typing i:nth-child(3) { animation-delay: .36s; }
 @keyframes blink { 0%, 70%, 100% { transform: scale(.7); opacity: .4; } 35% { transform: scale(1.15); opacity: 1; } }
 
+/* Kartu aksi Sahabat AI (tombol dalam chat) */
+.ai-aksi { align-self: stretch; max-width: 92%; display: flex; flex-direction: column; gap: 10px; }
+.ai-ajakan {
+  display: flex; flex-direction: column; gap: 10px; padding: 14px 16px;
+  border-radius: 14px; background: var(--surface-2); box-shadow: var(--in);
+  font-size: .86rem; line-height: 1.55; color: var(--text-soft);
+}
+.ai-ajakan .btn { align-self: flex-start; }
+.ai-ajakan .chip { align-self: flex-start; padding: 6px 12px; font-size: .78rem; background: var(--surface); }
+.ai-krisis {
+  display: flex; flex-direction: column; gap: 8px; padding: 16px 18px;
+  border-radius: 14px; background: var(--surface); box-shadow: 0 0 0 2px var(--accent), var(--out);
+  font-size: .9rem; line-height: 1.6;
+}
+.ai-krisis strong { font-size: 1rem; }
+.ai-krisis small { color: var(--text-mute); font-size: .76rem; }
+.ai-krisis .btn { align-self: flex-start; }
+
 .chat-quick { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 22px 14px; }
 .chat-quick .chip { padding: 8px 14px; font-size: .8rem; box-shadow: var(--in); }
 .chat-quick .chip:hover { box-shadow: var(--out-sm); transform: translateY(-1px); }
